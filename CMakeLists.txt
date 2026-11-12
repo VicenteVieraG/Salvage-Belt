@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.28.3)
 
 # Project name, version and languages
 #! Change the project name and version here
-project(MY_PROJECT VERSION 0.0.0 LANGUAGES C CXX)
+project(Salvage_Belt VERSION 0.0.1 LANGUAGES C CXX)
 
 # Configure build options
 set(CMAKE_CXX_STANDARD 26)
@@ -27,7 +27,7 @@ option(ENABLE_WARNINGS "Enable compiler warnings." OFF)
 option(ENABLE_WARNINGS_AS_ERRORS "Enable compiler warnings as errors." OFF)
 option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis." OFF)
 option(ENABLE_SANITIZERS "Enable sanitizer helpers for targets." OFF)
-option(ENABLE_LTO_GLOBALY "Enable LTO/IPO globally for Release and RelWithDebInfo targets." OFF)
+option(ENABLE_LTO_GLOBALY "Enable LTO/IPO globally for Release and RelWithDebInfo targets." ON)
 
 # Modules include
 include(LTO)
