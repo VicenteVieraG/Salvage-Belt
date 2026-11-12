@@ -1,0 +1,1 @@
+add_library(salvageCore STATIC salvageCore.cpp)
