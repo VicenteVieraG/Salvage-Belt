@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <type_traits>
 #include <utility>
-#include "math/Body.hpp"
+#include "world/Body.hpp"
 
 using namespace salvage::core;
 
@@ -39,7 +39,7 @@ TEST_CASE("Body bounds are initialized from its position and collider", "[core][
         requireVec3(body.getPosition(), {10.0, -5.0, 2.0});
         requireVec3(body.getVelocity(), {1.0, 2.0, 3.0});
         REQUIRE(body.getInverseMass() == 0.5);
-        REQUIRE(std::get<SphereCollider>(body.getCollider()).radious == 3.0);
+        REQUIRE(std::get<SphereCollider>(body.getCollider()).radius == 3.0);
     }
 
     SECTION("Axis-aligned box uses its distinct half-extents") {

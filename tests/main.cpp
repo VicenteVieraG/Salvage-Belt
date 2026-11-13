@@ -1,6 +1,14 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstdint>
 
+#ifdef SALVAGE_TESTS_CUSTOM_MAIN
+#include <catch2/catch_session.hpp>
+
+int main(int argc, char* argv[]) {
+    return Catch::Session().run(argc, argv);
+}
+#endif
+
 std::uint32_t factorial( std::uint32_t number ) {
     return number <= 1 ? number : factorial(number-1) * number;
 }
