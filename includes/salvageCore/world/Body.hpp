@@ -61,7 +61,7 @@ namespace salvage::core {
                 id{id}, position{position}, velocity{velocity}, inverseMass{inverseMass}, collider{collider}
             {};
 
-            // Bodies created outside a World start with an unassigned ID.
+            // Defaults the ID to zero; World assigns IDs independently.
             explicit constexpr Body(
                 const Vec3& position, const Vec3& velocity = {}, double inverseMass = 1.0,
                 const Collider& collider = SphereCollider{}) noexcept:

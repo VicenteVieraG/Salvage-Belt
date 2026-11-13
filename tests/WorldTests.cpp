@@ -9,6 +9,8 @@ using namespace salvage::core;
 
 static_assert(std::is_same_v<decltype(std::declval<World&>().getBody(1)), const Body*>);
 static_assert(std::is_same_v<decltype(std::declval<World&>().getBodies()), std::span<const Body>>);
+static_assert(std::is_same_v<decltype(std::declval<const World&>().findPotentialCollisions()),
+    std::vector<std::pair<Body, Body>>>);
 
 namespace {
     void requireVec3(const Vec3& actual, const Vec3& expected) {
@@ -20,6 +22,15 @@ namespace {
     void requireBounds(const Body& body, const Vec3& min, const Vec3& max) {
         requireVec3(body.aabb().min, min);
         requireVec3(body.aabb().max, max);
+    }
+
+    void requirePairIds(const std::vector<std::pair<Body, Body>>& actual,
+        const std::vector<std::pair<BodyId, BodyId>>& expected) {
+        REQUIRE(actual.size() == expected.size());
+        for (std::size_t i = 0; i < actual.size(); ++i) {
+            REQUIRE(actual[i].first.getId() == expected[i].first);
+            REQUIRE(actual[i].second.getId() == expected[i].second);
+        }
     }
 }
 
@@ -40,8 +51,8 @@ TEST_CASE("World creates bodies with unique IDs", "[core][world]") {
         {3.0, -2.0, 1.0}, {2.0, 4.0, -6.0}, 0.5, BoxCollider{{1.0, 2.0, 3.0}}
     });
 
-    REQUIRE(sphere != 0);
-    REQUIRE(box != sphere);
+    REQUIRE(sphere == 0);
+    REQUIRE(box == 1);
     REQUIRE(world.getBodyCount() == 2);
     REQUIRE(world.getBody(sphere) != nullptr);
     REQUIRE(world.getBody(box) != nullptr);
@@ -89,12 +100,19 @@ TEST_CASE("World IDs survive storage growth and removal", "[core][world]") {
         ids.push_back(world.createBody(Body{{static_cast<double>(i), 0.0, 0.0}}));
     }
 
-    REQUIRE_FALSE(world.removeBody(0));
+    REQUIRE_FALSE(world.removeBody(ids.back() + 1));
     REQUIRE(world.removeBody(ids[127]));
     REQUIRE(world.removeBody(ids.front()));
     REQUIRE(world.removeBody(ids.back()));
-    REQUIRE_FALSE(world.removeBody(ids[127]));
-    REQUIRE(world.getBody(ids[127]) == nullptr);
+    // Missing IDs below, within, and above the remaining sorted range must
+    // not select the next body returned by lower_bound.
+    for (const BodyId missingId : {ids.front(), ids[127], ids.back(), std::numeric_limits<BodyId>::max()}) {
+        REQUIRE(world.getBody(missingId) == nullptr);
+        REQUIRE_FALSE(world.removeBody(missingId));
+        REQUIRE_FALSE(world.setBodyPosition(missingId, {}));
+        REQUIRE_FALSE(world.setBodyVelocity(missingId, {}));
+        REQUIRE_FALSE(world.setBodyCollider(missingId, SphereCollider{}));
+    }
     REQUIRE(world.getBodyCount() == 253);
     for (std::size_t i = 1; i + 1 < ids.size(); ++i) {
         if (i == 127) {
@@ -106,7 +124,13 @@ TEST_CASE("World IDs survive storage growth and removal", "[core][world]") {
     }
     REQUIRE(world.getBodies().front().getId() == ids[1]);
     REQUIRE(world.getBodies().back().getId() == ids[254]);
-    REQUIRE(world.createBody() > ids.back());
+    const BodyId appended = world.createBody();
+    REQUIRE(appended > ids.back());
+    REQUIRE(world.getBody(appended) != nullptr);
+    REQUIRE(world.getBody(appended)->getId() == appended);
+    REQUIRE(world.setBodyVelocity(ids[128], {1.0, 2.0, 3.0}));
+    requireVec3(world.getBody(ids[128])->getVelocity(), {1.0, 2.0, 3.0});
+    REQUIRE(world.getBodies().back().getId() == appended);
 }
 
 TEST_CASE("Clearing a world preserves gravity without recycling IDs", "[core][world]") {
@@ -122,7 +146,7 @@ TEST_CASE("Clearing a world preserves gravity without recycling IDs", "[core][wo
     REQUIRE(world.getBody(second) == nullptr);
     REQUIRE(world.findPotentialCollisions().empty());
     requireVec3(world.getGravity(), {0.0, -2.0, 0.0});
-    REQUIRE(world.createBody() > second);
+    REQUIRE(world.createBody() == second + 1);
 }
 
 TEST_CASE("World body edits keep bounds synchronized", "[core][world]") {
@@ -137,9 +161,10 @@ TEST_CASE("World body edits keep bounds synchronized", "[core][world]") {
     requireVec3(world.getBody(id)->getVelocity(), {-1.0, 2.0, 3.0});
     requireBounds(*world.getBody(id), {2.0, -3.0, 8.0}, {6.0, -1.0, 8.0});
 
-    REQUIRE_FALSE(world.setBodyPosition(0, {}));
-    REQUIRE_FALSE(world.setBodyVelocity(0, {}));
-    REQUIRE_FALSE(world.setBodyCollider(0, SphereCollider{}));
+    const BodyId missingId = id + 1;
+    REQUIRE_FALSE(world.setBodyPosition(missingId, {}));
+    REQUIRE_FALSE(world.setBodyVelocity(missingId, {}));
+    REQUIRE_FALSE(world.setBodyCollider(missingId, SphereCollider{}));
     REQUIRE(world.removeBody(id));
     REQUIRE_FALSE(world.setBodyPosition(id, {}));
     REQUIRE_FALSE(world.setBodyVelocity(id, {}));
@@ -171,7 +196,7 @@ TEST_CASE("Invalid bodies leave a world and its IDs unchanged", "[core][world]")
 
     REQUIRE_THROWS_AS(world.createBody(Body{position, velocity, inverseMass, collider}), std::invalid_argument);
     REQUIRE(world.getBodyCount() == 0);
-    REQUIRE(world.createBody() == 1);
+    REQUIRE(world.createBody() == 0);
 }
 
 TEST_CASE("Invalid world edits do not change existing state", "[core][world]") {
@@ -278,42 +303,68 @@ TEST_CASE("World reports each potential collision once and omits static pairs", 
     const BodyId third = world.createBody(Body{{}, {}, 0.0});
     const BodyId fourth = world.createBody(Body{{}, {}, 0.0});
     world.createBody(Body{{10.0, 0.0, 0.0}});
-    const std::vector<BodyPair> expected{
+    const std::vector<std::pair<BodyId, BodyId>> expected{
         {first, second}, {first, third}, {first, fourth}, {second, third}, {second, fourth}
     };
-    REQUIRE(world.findPotentialCollisions() == expected);
-    REQUIRE(world.findPotentialCollisions() == expected);
+    requirePairIds(world.findPotentialCollisions(), expected);
+    requirePairIds(world.findPotentialCollisions(), expected);
 
     REQUIRE(world.removeBody(second));
-    const std::vector<BodyPair> afterRemoval{{first, third}, {first, fourth}};
-    REQUIRE(world.findPotentialCollisions() == afterRemoval);
+    const std::vector<std::pair<BodyId, BodyId>> afterRemoval{{first, third}, {first, fourth}};
+    requirePairIds(world.findPotentialCollisions(), afterRemoval);
 }
 
 TEST_CASE("Potential collisions reflect movement and collider changes immediately", "[core][world][collision]") {
     World world;
     const BodyId first = world.createBody();
     const BodyId second = world.createBody(Body{{4.0, 0.0, 0.0}, {-2.0, 0.0, 0.0}});
-    const std::vector<BodyPair> pair{{first, second}};
+    const std::vector<std::pair<BodyId, BodyId>> pair{{first, second}};
     REQUIRE(world.findPotentialCollisions().empty());
     world.step(1.0);
-    REQUIRE(world.findPotentialCollisions() == pair);
+    requirePairIds(world.findPotentialCollisions(), pair);
     REQUIRE(world.setBodyPosition(second, {3.0, 0.0, 0.0}));
     REQUIRE(world.findPotentialCollisions().empty());
     REQUIRE(world.setBodyCollider(second, SphereCollider{2.0}));
-    REQUIRE(world.findPotentialCollisions() == pair);
+    requirePairIds(world.findPotentialCollisions(), pair);
 
     // AABB candidates deliberately include false positives for actual spheres.
     REQUIRE(world.setBodyCollider(second, SphereCollider{1.0}));
     REQUIRE(world.setBodyPosition(second, {2.0, 2.0, 2.0}));
-    REQUIRE(world.findPotentialCollisions() == pair);
+    requirePairIds(world.findPotentialCollisions(), pair);
 }
 
 TEST_CASE("Point colliders participate in potential collisions", "[core][world][collision]") {
     World world;
     const BodyId first = world.createBody(Body{{}, {}, 1.0, SphereCollider{0.0}});
     const BodyId second = world.createBody(Body{{}, {}, 1.0, BoxCollider{{0.0, 0.0, 0.0}}});
-    const std::vector<BodyPair> pair{{first, second}};
-    REQUIRE(world.findPotentialCollisions() == pair);
+    const std::vector<std::pair<BodyId, BodyId>> pair{{first, second}};
+    requirePairIds(world.findPotentialCollisions(), pair);
     REQUIRE(world.setBodyPosition(second, {0.0, 0.0, 0.25}));
     REQUIRE(world.findPotentialCollisions().empty());
+}
+
+TEST_CASE("Potential collision pairs own independent body snapshots", "[core][world][collision]") {
+    World world;
+    const BodyId sphere = world.createBody(Body{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, 0.5, SphereCollider{2.0}});
+    const BodyId box = world.createBody(Body{{2.0, 2.0, 3.0}, {}, 0.0, BoxCollider{{1.0, 2.0, 3.0}}});
+    auto pairs = world.findPotentialCollisions();
+    requirePairIds(pairs, {{sphere, box}});
+
+    pairs[0].first.setPosition({});
+    requireVec3(world.getBody(sphere)->getPosition(), {1.0, 2.0, 3.0});
+    REQUIRE(world.setBodyPosition(box, {10.0, 20.0, 30.0}));
+    world.clear();
+
+    // Returned bodies retain all their state even after the World is cleared.
+    requirePairIds(pairs, {{sphere, box}});
+    requireVec3(pairs[0].first.getPosition(), {});
+    requireVec3(pairs[0].first.getVelocity(), {4.0, 5.0, 6.0});
+    REQUIRE(pairs[0].first.getInverseMass() == 0.5);
+    REQUIRE(std::get<SphereCollider>(pairs[0].first.getCollider()).radius == 2.0);
+    requireBounds(pairs[0].first, {-2.0, -2.0, -2.0}, {2.0, 2.0, 2.0});
+    requireVec3(pairs[0].second.getPosition(), {2.0, 2.0, 3.0});
+    requireVec3(pairs[0].second.getVelocity(), {});
+    REQUIRE(pairs[0].second.getInverseMass() == 0.0);
+    requireVec3(std::get<BoxCollider>(pairs[0].second.getCollider()).halfExtents, {1.0, 2.0, 3.0});
+    requireBounds(pairs[0].second, {1.0, 0.0, 0.0}, {3.0, 4.0, 6.0});
 }

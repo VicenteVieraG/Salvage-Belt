@@ -30,7 +30,7 @@ TEST_CASE("Default body bounds enclose its unit sphere", "[core][body][aabb]") {
     requireBounds(body.aabb(), {-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0});
 }
 
-TEST_CASE("Bodies can be constructed without an assigned ID", "[core][body][aabb]") {
+TEST_CASE("Bodies can be constructed without an explicit ID", "[core][body][aabb]") {
     SECTION("Position-only construction keeps the default physical properties") {
         constexpr Body body{Vec3{2.0, -3.0, 4.0}};
         STATIC_REQUIRE(body.getId() == 0);
