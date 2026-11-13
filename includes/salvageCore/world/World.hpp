@@ -43,7 +43,8 @@ namespace salvage::core {
             const Vec3& getGravity() const noexcept;
             void setGravity(const Vec3& gravity);
 
-            // Semi-implicit Euler: velocity += gravity * dt, position += velocity * dt.
+            // Velocity Verlet with uniform gravity, constant during each step.
+            // Position uses the initial velocity and half the acceleration term.
             // Zero inverse mass means static. dt must be finite and non-negative;
             // zero is a no-op. Invalid dt throws std::invalid_argument.
             void step(double deltaTime);

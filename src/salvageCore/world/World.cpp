@@ -1,4 +1,5 @@
 #include "world/World.hpp"
+#include "math/Physics.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -128,23 +129,24 @@ namespace salvage::core {
         for (Body& body : this->bodies) {
             if (body.getInverseMass() == 0.0) continue;
 
-            body.setVelocity(body.getVelocity() + this->gravity * deltaTime);
-            body.setPosition(body.getPosition() + body.getVelocity() * deltaTime);
+            const Vec3 position = velocityVerletPosition(body.getPosition(), body.getVelocity(), this->gravity, deltaTime);
+            const Vec3 velocity = velocityVerletVelocity(body.getVelocity(), this->gravity, this->gravity, deltaTime);
+
+            // Uniform gravity is unchanged at the new position and time.
+            body.setPosition(position);
+            body.setVelocity(velocity);
         }
     }
 
     std::vector<std::pair<Body, Body>> World::findPotentialCollisions() const {
         std::vector<std::pair<Body, Body>> pairs;
-        for (std::size_t i = 0; i < this->bodies.size(); ++i) {
-            const Body& first = this->bodies[i];
-            for (std::size_t j = i + 1; j < this->bodies.size(); ++j) {
-                const Body& second = this->bodies[j];
-                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) {
-                    continue;
-                }
-                if (overlaps(first.aabb(), second.aabb())) {
-                    pairs.emplace_back(first, second);
-                }
+
+        for (std::size_t i = 0; i < this->bodies.size(); i++) {
+            for (std::size_t j = i + 1; j < this->bodies.size(); j++) {
+                const auto& [first, second] = std::make_pair(this->bodies[i], this->bodies[j]);
+
+                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) continue;
+                if (overlaps(first.aabb(), second.aabb())) pairs.emplace_back(first, second);
             }
         }
         return pairs;

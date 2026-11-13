@@ -229,7 +229,7 @@ TEST_CASE("Zero-gravity stepping moves dynamic bodies and refreshes bounds", "[c
     requireBounds(*world.getBody(id), {2.5, 0.0, 4.0}, {3.5, 2.0, 8.0});
 }
 
-TEST_CASE("Gravity uses semi-implicit Euler independently of dynamic mass", "[core][world][step]") {
+TEST_CASE("Gravity uses Velocity Verlet independently of dynamic mass", "[core][world][step]") {
     World world{{2.0, -4.0, 6.0}};
     const BodyId first = world.createBody();
     const BodyId second = world.createBody(Body{{}, {}, 0.25});
@@ -237,15 +237,35 @@ TEST_CASE("Gravity uses semi-implicit Euler independently of dynamic mass", "[co
 
     for (const BodyId id : {first, second}) {
         requireVec3(world.getBody(id)->getVelocity(), {1.0, -2.0, 3.0});
-        requireVec3(world.getBody(id)->getPosition(), {0.5, -1.0, 1.5});
+        requireVec3(world.getBody(id)->getPosition(), {0.25, -0.5, 0.75});
+        requireBounds(*world.getBody(id), {-0.75, -1.5, -0.25}, {1.25, 0.5, 1.75});
     }
     world.step(0.5);
     requireVec3(world.getBody(first)->getVelocity(), {2.0, -4.0, 6.0});
-    requireVec3(world.getBody(first)->getPosition(), {1.5, -3.0, 4.5});
+    requireVec3(world.getBody(first)->getPosition(), {1.0, -2.0, 3.0});
     world.setGravity({});
     world.step(0.5);
     requireVec3(world.getBody(first)->getVelocity(), {2.0, -4.0, 6.0});
-    requireVec3(world.getBody(first)->getPosition(), {2.5, -5.0, 7.5});
+    requireVec3(world.getBody(first)->getPosition(), {2.0, -4.0, 6.0});
+}
+
+TEST_CASE("Velocity Verlet follows a ballistic trajectory across different time steps", "[core][world][step]") {
+    World world{{2.0, -4.0, 6.0}};
+    const BodyId id = world.createBody(Body{{1.0, -2.0, 3.0}, {4.0, 2.0, -2.0}});
+
+    SECTION("Single step") {
+        world.step(2.0);
+    }
+
+    SECTION("Several unequal steps with the same total duration") {
+        world.step(0.25);
+        world.step(0.5);
+        world.step(1.25);
+    }
+
+    requireVec3(world.getBody(id)->getPosition(), {13.0, -6.0, 11.0});
+    requireVec3(world.getBody(id)->getVelocity(), {8.0, -6.0, 10.0});
+    requireBounds(*world.getBody(id), {12.0, -7.0, 10.0}, {14.0, -5.0, 12.0});
 }
 
 TEST_CASE("Static bodies remain fixed even with velocity and gravity", "[core][world][step]") {
