@@ -30,6 +30,30 @@ TEST_CASE("Default body bounds enclose its unit sphere", "[core][body][aabb]") {
     requireBounds(body.aabb(), {-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0});
 }
 
+TEST_CASE("Bodies can be constructed without an assigned ID", "[core][body][aabb]") {
+    SECTION("Position-only construction keeps the default physical properties") {
+        constexpr Body body{Vec3{2.0, -3.0, 4.0}};
+        STATIC_REQUIRE(body.getId() == 0);
+        STATIC_REQUIRE(body.aabb().min.y == -4.0);
+        requireVec3(body.getPosition(), {2.0, -3.0, 4.0});
+        requireVec3(body.getVelocity(), {});
+        REQUIRE(body.getInverseMass() == 1.0);
+        REQUIRE(std::get<SphereCollider>(body.getCollider()).radius == 1.0);
+        requireBounds(body.aabb(), {1.0, -4.0, 3.0}, {3.0, -2.0, 5.0});
+    }
+
+    SECTION("Explicit physical properties initialize box bounds") {
+        constexpr Body body{{3.0, -2.0, 1.0}, {2.0, 4.0, -6.0}, 0.5, BoxCollider{{1.0, 2.0, 3.0}}};
+        STATIC_REQUIRE(body.getId() == 0);
+        STATIC_REQUIRE(body.aabb().max.z == 4.0);
+        requireVec3(body.getPosition(), {3.0, -2.0, 1.0});
+        requireVec3(body.getVelocity(), {2.0, 4.0, -6.0});
+        REQUIRE(body.getInverseMass() == 0.5);
+        REQUIRE(std::holds_alternative<BoxCollider>(body.getCollider()));
+        requireBounds(body.aabb(), {2.0, -4.0, -2.0}, {4.0, 0.0, 4.0});
+    }
+}
+
 TEST_CASE("Body bounds are initialized from its position and collider", "[core][body][aabb]") {
     SECTION("Sphere radius extends equally along every axis") {
         constexpr Body body{7, {10.0, -5.0, 2.0}, {1.0, 2.0, 3.0}, 0.5, SphereCollider{3.0}};

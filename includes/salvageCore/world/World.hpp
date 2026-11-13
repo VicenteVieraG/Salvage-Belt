@@ -7,13 +7,6 @@
 #include "Body.hpp"
 
 namespace salvage::core {
-    struct BodyDefinition {
-        Vec3 position{};
-        Vec3 velocity{};
-        double inverseMass{ 1.0 };
-        Collider collider{ SphereCollider{} };
-    };
-
     struct BodyPair {
         BodyId first{};
         BodyId second{};
@@ -35,9 +28,10 @@ namespace salvage::core {
             explicit World(const Vec3& gravity = {});
 
             // IDs are never reused by creation, removal, or clear().
-            // Invalid definitions throw std::invalid_argument; exhausted IDs
+            // Copies the body's state and assigns a fresh ID, ignoring its input ID.
+            // Invalid bodies throw std::invalid_argument; exhausted IDs
             // throw std::overflow_error without modifying the World.
-            BodyId createBody(const BodyDefinition& definition = {});
+            BodyId createBody(const Body& body = {});
             bool removeBody(BodyId id) noexcept;
             void clear() noexcept;
 

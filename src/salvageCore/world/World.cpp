@@ -29,11 +29,11 @@ namespace salvage::core {
         this->setGravity(gravity);
     }
 
-    BodyId World::createBody(const BodyDefinition& definition) {
-        validateVector(definition.position);
-        validateVector(definition.velocity);
-        validateCollider(definition.collider);
-        if (!std::isfinite(definition.inverseMass) || definition.inverseMass < 0.0) {
+    BodyId World::createBody(const Body& body) {
+        validateVector(body.getPosition());
+        validateVector(body.getVelocity());
+        validateCollider(body.getCollider());
+        if (!std::isfinite(body.getInverseMass()) || body.getInverseMass() < 0.0) {
             throw std::invalid_argument("Inverse mass must be finite and non-negative");
         }
         if (this->nextBodyId > std::numeric_limits<BodyId>::max()) {
@@ -41,8 +41,9 @@ namespace salvage::core {
         }
 
         const auto id = static_cast<BodyId>(this->nextBodyId);
-        this->bodies.emplace_back(id, definition.position, definition.velocity,
-            definition.inverseMass, definition.collider);
+        // Copy before growing storage: the input may be a body in this World.
+        this->bodies.push_back(Body{id, body.getPosition(), body.getVelocity(),
+            body.getInverseMass(), body.getCollider()});
         ++this->nextBodyId;
         return id;
     }

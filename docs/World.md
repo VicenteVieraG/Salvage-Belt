@@ -7,8 +7,13 @@ Include `salvageCore.hpp` (or `world/World.hpp`) and link `salvageCore`.
 
 ## Ownership and identity
 
-- `createBody(BodyDefinition)` copies the definition and assigns a nonzero
-  `BodyId`. Defaults produce a dynamic unit sphere at rest at the origin.
+- `createBody(const Body&)` copies a body's state and assigns a fresh nonzero
+  `BodyId`, ignoring the input body's ID and leaving the input unchanged.
+  `createBody()` produces a dynamic unit sphere at rest at the origin.
+- Construct a body with `Body(position, velocity, inverseMass, collider)`;
+  velocity defaults to zero, inverse mass to one, and collider to a unit sphere.
+  This overload leaves the ID unassigned (zero). The existing full constructor
+  `Body(id, position, velocity, inverseMass, collider)` remains available.
 - IDs increase monotonically and are local to a world. Removing bodies or
   clearing the world never recycles IDs; exhaustion throws `std::overflow_error`.
   Failed creation does not consume an ID.
@@ -71,15 +76,11 @@ acceleration are future work.
 using namespace salvage::core;
 
 World world;
-const BodyId debris = world.createBody({
-    .position = {0.0, 0.0, 0.0},
-    .velocity = {2.0, 0.0, 0.0},
-    .collider = SphereCollider{0.5}
+const BodyId debris = world.createBody(Body{
+    {0.0, 0.0, 0.0}, {2.0, 0.0, 0.0}, 1.0, SphereCollider{0.5}
 });
-const BodyId station = world.createBody({
-    .position = {3.0, 0.0, 0.0},
-    .inverseMass = 0.0,
-    .collider = BoxCollider{{1.0, 1.0, 1.0}}
+const BodyId station = world.createBody(Body{
+    {3.0, 0.0, 0.0}, {}, 0.0, BoxCollider{{1.0, 1.0, 1.0}}
 });
 
 world.step(0.5); // Debris is now at x = 1; the station remains fixed.
