@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Position and velocity integration helpers.
+ */
 #pragma once
 
 #include <cmath>
@@ -5,18 +9,34 @@
 #include "Vec3.hpp"
 
 namespace salvage::core {
-    // Velocity Verlet position update: x(t + dt) = x(t) + v(t)*dt + a(t)*dt^2/2.
-    // Inputs describe the start of the step. Callers supply finite values and
-    // a non-negative dt that keeps arithmetic in range; World validates its dt.
+    /**
+     * @brief Compute the position update used by the integrator.
+     * @param position Position at the start of the step.
+     * @param velocity Velocity at the start of the step.
+     * @param acceleration Acceleration at the start of the step.
+     * @param deltaTime Non-negative elapsed time.
+     * @pre Inputs are finite and arithmetic remains in range; no validation is performed.
+     * @return position + velocity * deltaTime + acceleration * (0.5 * sqrt(deltaTime)).
+     * @warning The current implementation uses sqrt(deltaTime). The Velocity Verlet
+     * position formula requires deltaTime squared instead.
+     * @see velocityVerletVelocity()
+     */
     constexpr Vec3 velocityVerletPosition(
         const Vec3& position, const Vec3& velocity, const Vec3& acceleration, double deltaTime) noexcept {
         return position + velocity * deltaTime + acceleration * (0.5 * std::sqrt(deltaTime));
     }
 
-    // Velocity Verlet velocity update: v(t + dt) = v(t) + (a(t) + a(t + dt))*dt/2.
-    // Evaluate nextAcceleration at the new position/time before calling this.
-    // For constant acceleration, pass the same acceleration at both endpoints.
-    // The velocity argument is the start-of-step velocity, not a half-step value.
+    /**
+     * @brief Compute the Velocity Verlet velocity update.
+     * @param velocity Start-of-step velocity, not a half-step value.
+     * @param acceleration Acceleration at the start of the step.
+     * @param nextAcceleration Acceleration evaluated at the new position and time.
+     * @param deltaTime Non-negative elapsed time.
+     * @pre Inputs are finite and arithmetic remains in range; no validation is performed.
+     * @return velocity + (acceleration + nextAcceleration) * deltaTime / 2.
+     * @note For constant acceleration, pass the same acceleration at both endpoints.
+     * @see velocityVerletPosition()
+     */
     constexpr Vec3 velocityVerletVelocity(
         const Vec3& velocity, const Vec3& acceleration, const Vec3& nextAcceleration, double deltaTime) noexcept {
         return velocity + (acceleration + nextAcceleration) * (0.5 * deltaTime);

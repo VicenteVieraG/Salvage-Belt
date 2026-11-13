@@ -149,7 +149,22 @@ Linter for C/C++ source files. This template includes an option to enable per-ta
 - included in [LLVM toolchain](#clang-llvm) for Windows.
 
 ### Doxygen (Optional)
-Documentation generated automaticly from comments in code. It generates a wiki web page with all the documentation from the project.
+Documentation is generated from Doxygen comments in the project headers and source files.
+
+Use `/** ... */` blocks with `@brief`, `@param`, `@return`, and `@throws` as applicable.
+Document member fields with `///<` comments, and use `@note` or `@pre` for lifetime
+rules and caller requirements. Keep API contracts on declarations in the public
+headers so generated documentation and editor tooltips share the same source.
+
+After configuring CMake, generate the documentation with:
+
+```sh
+cmake --build build --target docs
+```
+
+Alternatively, run `doxygen Doxyfile` from the `docs` directory. Open
+`docs/html/index.html` to browse the result. The configuration excludes bundled
+Catch2 sources and warns about undocumented API members and parameters.
 - __apt__
   ```bash
   sudo apt update

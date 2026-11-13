@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief World ownership, validation, integration, and collision-candidate tests.
+ */
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
 #include <stdexcept>
@@ -13,17 +17,33 @@ static_assert(std::is_same_v<decltype(std::declval<const World&>().findPotential
     std::vector<std::pair<Body, Body>>>);
 
 namespace {
+    /**
+     * @brief Assert equality of every vector component.
+     * @param actual Observed vector.
+     * @param expected Required vector.
+     */
     void requireVec3(const Vec3& actual, const Vec3& expected) {
         REQUIRE(actual.x == expected.x);
         REQUIRE(actual.y == expected.y);
         REQUIRE(actual.z == expected.z);
     }
 
+    /**
+     * @brief Assert the cached bounds of a body.
+     * @param body Body to inspect.
+     * @param min Required minimum corner.
+     * @param max Required maximum corner.
+     */
     void requireBounds(const Body& body, const Vec3& min, const Vec3& max) {
         requireVec3(body.aabb().min, min);
         requireVec3(body.aabb().max, max);
     }
 
+    /**
+     * @brief Assert the ordered IDs in collision candidates.
+     * @param actual Observed body pairs.
+     * @param expected Required identifier pairs.
+     */
     void requirePairIds(const std::vector<std::pair<Body, Body>>& actual,
         const std::vector<std::pair<BodyId, BodyId>>& expected) {
         REQUIRE(actual.size() == expected.size());
@@ -34,6 +54,10 @@ namespace {
     }
 }
 
+/**
+ * @brief A new world is empty and has zero gravity.
+ * @test A new world is empty and has zero gravity.
+ */
 TEST_CASE("A new world is empty and has zero gravity", "[core][world]") {
     const World world;
     REQUIRE(world.getBodyCount() == 0);
@@ -44,6 +68,10 @@ TEST_CASE("A new world is empty and has zero gravity", "[core][world]") {
     requireVec3(world.getGravity(), {});
 }
 
+/**
+ * @brief World creates bodies with unique IDs.
+ * @test World creates bodies with unique IDs.
+ */
 TEST_CASE("World creates bodies with unique IDs", "[core][world]") {
     World world;
     const BodyId sphere = world.createBody();
@@ -69,6 +97,10 @@ TEST_CASE("World creates bodies with unique IDs", "[core][world]") {
     REQUIRE(world.getBodies()[1].getId() == box);
 }
 
+/**
+ * @brief World copies body state while assigning its own IDs.
+ * @test World copies body state while assigning its own IDs. Copy from the world's own storage repeatedly, including across growth.
+ */
 TEST_CASE("World copies body state while assigning its own IDs", "[core][world]") {
     World world;
     const BodyId first = world.createBody();
@@ -80,7 +112,6 @@ TEST_CASE("World copies body state while assigning its own IDs", "[core][world]"
     source.setPosition({});
     requireVec3(world.getBody(copy)->getPosition(), {3.0, -2.0, 1.0});
 
-    // Copy from the world's own storage repeatedly, including across growth.
     for (int i = 0; i < 64; ++i) {
         const BodyId next = world.createBody(*world.getBody(copy));
         REQUIRE(next > copy);
@@ -93,6 +124,10 @@ TEST_CASE("World copies body state while assigning its own IDs", "[core][world]"
     }
 }
 
+/**
+ * @brief World IDs survive storage growth and removal.
+ * @test World IDs survive storage growth and removal. Missing IDs below, within, and above the remaining sorted range must not select the next body returned by lower_bound.
+ */
 TEST_CASE("World IDs survive storage growth and removal", "[core][world]") {
     World world;
     std::vector<BodyId> ids;
@@ -104,8 +139,6 @@ TEST_CASE("World IDs survive storage growth and removal", "[core][world]") {
     REQUIRE(world.removeBody(ids[127]));
     REQUIRE(world.removeBody(ids.front()));
     REQUIRE(world.removeBody(ids.back()));
-    // Missing IDs below, within, and above the remaining sorted range must
-    // not select the next body returned by lower_bound.
     for (const BodyId missingId : {ids.front(), ids[127], ids.back(), std::numeric_limits<BodyId>::max()}) {
         REQUIRE(world.getBody(missingId) == nullptr);
         REQUIRE_FALSE(world.removeBody(missingId));
@@ -133,6 +166,10 @@ TEST_CASE("World IDs survive storage growth and removal", "[core][world]") {
     REQUIRE(world.getBodies().back().getId() == appended);
 }
 
+/**
+ * @brief Clearing a world preserves gravity without recycling IDs.
+ * @test Clearing a world preserves gravity without recycling IDs.
+ */
 TEST_CASE("Clearing a world preserves gravity without recycling IDs", "[core][world]") {
     World world{{0.0, -2.0, 0.0}};
     const BodyId first = world.createBody();
@@ -149,6 +186,10 @@ TEST_CASE("Clearing a world preserves gravity without recycling IDs", "[core][wo
     REQUIRE(world.createBody() == second + 1);
 }
 
+/**
+ * @brief World body edits keep bounds synchronized.
+ * @test World body edits keep bounds synchronized.
+ */
 TEST_CASE("World body edits keep bounds synchronized", "[core][world]") {
     World world;
     const BodyId id = world.createBody();
@@ -171,6 +212,10 @@ TEST_CASE("World body edits keep bounds synchronized", "[core][world]") {
     REQUIRE_FALSE(world.setBodyCollider(id, SphereCollider{}));
 }
 
+/**
+ * @brief Invalid bodies leave a world and its IDs unchanged.
+ * @test Invalid bodies leave a world and its IDs unchanged.
+ */
 TEST_CASE("Invalid bodies leave a world and its IDs unchanged", "[core][world]") {
     World world;
     Vec3 position{};
@@ -199,6 +244,10 @@ TEST_CASE("Invalid bodies leave a world and its IDs unchanged", "[core][world]")
     REQUIRE(world.createBody() == 0);
 }
 
+/**
+ * @brief Invalid world edits do not change existing state.
+ * @test Invalid world edits do not change existing state.
+ */
 TEST_CASE("Invalid world edits do not change existing state", "[core][world]") {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     const double inf = std::numeric_limits<double>::infinity();
@@ -217,6 +266,10 @@ TEST_CASE("Invalid world edits do not change existing state", "[core][world]") {
     requireBounds(*world.getBody(id), {-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0});
 }
 
+/**
+ * @brief Zero-gravity stepping moves dynamic bodies and refreshes bounds.
+ * @test Zero-gravity stepping moves dynamic bodies and refreshes bounds.
+ */
 TEST_CASE("Zero-gravity stepping moves dynamic bodies and refreshes bounds", "[core][world][step]") {
     World world;
     const BodyId id = world.createBody(Body{
@@ -229,6 +282,10 @@ TEST_CASE("Zero-gravity stepping moves dynamic bodies and refreshes bounds", "[c
     requireBounds(*world.getBody(id), {2.5, 0.0, 4.0}, {3.5, 2.0, 8.0});
 }
 
+/**
+ * @brief Gravity uses Velocity Verlet independently of dynamic mass.
+ * @test Gravity uses Velocity Verlet independently of dynamic mass.
+ */
 TEST_CASE("Gravity uses Velocity Verlet independently of dynamic mass", "[core][world][step]") {
     World world{{2.0, -4.0, 6.0}};
     const BodyId first = world.createBody();
@@ -249,6 +306,10 @@ TEST_CASE("Gravity uses Velocity Verlet independently of dynamic mass", "[core][
     requireVec3(world.getBody(first)->getPosition(), {2.0, -4.0, 6.0});
 }
 
+/**
+ * @brief Velocity Verlet follows a ballistic trajectory across different time steps.
+ * @test Velocity Verlet follows a ballistic trajectory across different time steps.
+ */
 TEST_CASE("Velocity Verlet follows a ballistic trajectory across different time steps", "[core][world][step]") {
     World world{{2.0, -4.0, 6.0}};
     const BodyId id = world.createBody(Body{{1.0, -2.0, 3.0}, {4.0, 2.0, -2.0}});
@@ -268,6 +329,10 @@ TEST_CASE("Velocity Verlet follows a ballistic trajectory across different time 
     requireBounds(*world.getBody(id), {12.0, -7.0, 10.0}, {14.0, -5.0, 12.0});
 }
 
+/**
+ * @brief Static bodies remain fixed even with velocity and gravity.
+ * @test Static bodies remain fixed even with velocity and gravity.
+ */
 TEST_CASE("Static bodies remain fixed even with velocity and gravity", "[core][world][step]") {
     World world{{0.0, -4.0, 0.0}};
     const BodyId id = world.createBody(Body{
@@ -279,6 +344,10 @@ TEST_CASE("Static bodies remain fixed even with velocity and gravity", "[core][w
     requireBounds(*world.getBody(id), {0.0, 1.0, 2.0}, {2.0, 3.0, 4.0});
 }
 
+/**
+ * @brief Zero and invalid time steps leave bodies unchanged.
+ * @test Zero and invalid time steps leave bodies unchanged.
+ */
 TEST_CASE("Zero and invalid time steps leave bodies unchanged", "[core][world][step]") {
     World world{{0.0, -4.0, 0.0}};
     REQUIRE_NOTHROW(world.step(1.0));
@@ -294,6 +363,10 @@ TEST_CASE("Zero and invalid time steps leave bodies unchanged", "[core][world][s
     requireBounds(*world.getBody(id), {0.0, 1.0, 2.0}, {2.0, 3.0, 4.0});
 }
 
+/**
+ * @brief AABB overlap includes touching bounds and rejects separation on every axis.
+ * @test AABB overlap includes touching bounds and rejects separation on every axis.
+ */
 TEST_CASE("AABB overlap includes touching bounds and rejects separation on every axis", "[core][world][aabb]") {
     constexpr AABB box{{-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0}};
     STATIC_REQUIRE(overlaps(box, box));
@@ -315,6 +388,10 @@ TEST_CASE("AABB overlap includes touching bounds and rejects separation on every
     REQUIRE(overlaps(other, box) == expected);
 }
 
+/**
+ * @brief World reports each potential collision once and omits static pairs.
+ * @test World reports each potential collision once and omits static pairs.
+ */
 TEST_CASE("World reports each potential collision once and omits static pairs", "[core][world][collision]") {
     World world;
     const BodyId first = world.createBody();
@@ -334,6 +411,10 @@ TEST_CASE("World reports each potential collision once and omits static pairs", 
     requirePairIds(world.findPotentialCollisions(), afterRemoval);
 }
 
+/**
+ * @brief Potential collisions reflect movement and collider changes immediately.
+ * @test Potential collisions reflect movement and collider changes immediately. AABB candidates deliberately include false positives for actual spheres.
+ */
 TEST_CASE("Potential collisions reflect movement and collider changes immediately", "[core][world][collision]") {
     World world;
     const BodyId first = world.createBody();
@@ -347,12 +428,15 @@ TEST_CASE("Potential collisions reflect movement and collider changes immediatel
     REQUIRE(world.setBodyCollider(second, SphereCollider{2.0}));
     requirePairIds(world.findPotentialCollisions(), pair);
 
-    // AABB candidates deliberately include false positives for actual spheres.
     REQUIRE(world.setBodyCollider(second, SphereCollider{1.0}));
     REQUIRE(world.setBodyPosition(second, {2.0, 2.0, 2.0}));
     requirePairIds(world.findPotentialCollisions(), pair);
 }
 
+/**
+ * @brief Point colliders participate in potential collisions.
+ * @test Point colliders participate in potential collisions.
+ */
 TEST_CASE("Point colliders participate in potential collisions", "[core][world][collision]") {
     World world;
     const BodyId first = world.createBody(Body{{}, {}, 1.0, SphereCollider{0.0}});
@@ -363,6 +447,10 @@ TEST_CASE("Point colliders participate in potential collisions", "[core][world][
     REQUIRE(world.findPotentialCollisions().empty());
 }
 
+/**
+ * @brief Potential collision pairs own independent body snapshots.
+ * @test Potential collision pairs own independent body snapshots. Returned bodies retain all their state even after the World is cleared.
+ */
 TEST_CASE("Potential collision pairs own independent body snapshots", "[core][world][collision]") {
     World world;
     const BodyId sphere = world.createBody(Body{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, 0.5, SphereCollider{2.0}});
@@ -375,7 +463,6 @@ TEST_CASE("Potential collision pairs own independent body snapshots", "[core][wo
     REQUIRE(world.setBodyPosition(box, {10.0, 20.0, 30.0}));
     world.clear();
 
-    // Returned bodies retain all their state even after the World is cleared.
     requirePairIds(pairs, {{sphere, box}});
     requireVec3(pairs[0].first.getPosition(), {});
     requireVec3(pairs[0].first.getVelocity(), {4.0, 5.0, 6.0});

@@ -1,9 +1,18 @@
+/**
+ * @file
+ * @brief Integration tests for constant acceleration and a harmonic oscillator.
+ */
 #include <catch2/catch_test_macros.hpp>
 #include "math/Physics.hpp"
 
 using namespace salvage::core;
 
 namespace {
+    /**
+     * @brief Assert equality of every vector component.
+     * @param actual Observed vector.
+     * @param expected Required vector.
+     */
     void requireVec3(const Vec3& actual, const Vec3& expected) {
         REQUIRE(actual.x == expected.x);
         REQUIRE(actual.y == expected.y);
@@ -11,6 +20,10 @@ namespace {
     }
 }
 
+/**
+ * @brief Velocity Verlet matches constant-acceleration motion.
+ * @test Velocity Verlet matches constant-acceleration motion.
+ */
 TEST_CASE("Velocity Verlet matches constant-acceleration motion", "[core][physics]") {
     constexpr Vec3 position{1.0, -2.0, 3.0};
     constexpr Vec3 velocity{4.0, -6.0, 8.0};
@@ -24,6 +37,10 @@ TEST_CASE("Velocity Verlet matches constant-acceleration motion", "[core][physic
     requireVec3(nextVelocity, {5.0, -4.0, 5.0});
 }
 
+/**
+ * @brief Velocity Verlet handles zero acceleration and zero duration.
+ * @test Velocity Verlet handles zero acceleration and zero duration.
+ */
 TEST_CASE("Velocity Verlet handles zero acceleration and zero duration", "[core][physics]") {
     const Vec3 position{1.0, -2.0, 3.0};
     const Vec3 velocity{4.0, -6.0, 8.0};
@@ -40,8 +57,11 @@ TEST_CASE("Velocity Verlet handles zero acceleration and zero duration", "[core]
     }
 }
 
+/**
+ * @brief Velocity Verlet uses acceleration at the new position.
+ * @test Velocity Verlet uses acceleration at the new position. Unit-frequency harmonic oscillator: acceleration = -position.
+ */
 TEST_CASE("Velocity Verlet uses acceleration at the new position", "[core][physics]") {
-    // Unit-frequency harmonic oscillator: acceleration = -position.
     const Vec3 position{1.0, 2.0, -4.0};
     const Vec3 velocity{};
     const Vec3 acceleration = position * -1.0;

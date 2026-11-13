@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief Body construction, mutation, and cached-bound tests.
+ */
 #include <catch2/catch_test_macros.hpp>
 #include <type_traits>
 #include <utility>
@@ -11,18 +15,33 @@ static_assert(std::is_same_v<decltype(std::declval<Body&>().getPosition()), cons
 static_assert(std::is_same_v<decltype(std::declval<Body&>().getCollider()), const Collider&>);
 
 namespace {
+    /**
+     * @brief Assert equality of every vector component.
+     * @param actual Observed vector.
+     * @param expected Required vector.
+     */
     void requireVec3(const Vec3& actual, const Vec3& expected) {
         REQUIRE(actual.x == expected.x);
         REQUIRE(actual.y == expected.y);
         REQUIRE(actual.z == expected.z);
     }
 
+    /**
+     * @brief Assert the corners of a bounding box.
+     * @param actual Observed bounds.
+     * @param min Required minimum corner.
+     * @param max Required maximum corner.
+     */
     void requireBounds(const AABB& actual, const Vec3& min, const Vec3& max) {
         requireVec3(actual.min, min);
         requireVec3(actual.max, max);
     }
 }
 
+/**
+ * @brief Default body bounds enclose its unit sphere.
+ * @test Default body bounds enclose its unit sphere.
+ */
 TEST_CASE("Default body bounds enclose its unit sphere", "[core][body][aabb]") {
     constexpr Body body;
     STATIC_REQUIRE(body.aabb().min.x == -1.0);
@@ -30,6 +49,10 @@ TEST_CASE("Default body bounds enclose its unit sphere", "[core][body][aabb]") {
     requireBounds(body.aabb(), {-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0});
 }
 
+/**
+ * @brief Bodies can be constructed without an explicit ID.
+ * @test Bodies can be constructed without an explicit ID.
+ */
 TEST_CASE("Bodies can be constructed without an explicit ID", "[core][body][aabb]") {
     SECTION("Position-only construction keeps the default physical properties") {
         constexpr Body body{Vec3{2.0, -3.0, 4.0}};
@@ -54,6 +77,10 @@ TEST_CASE("Bodies can be constructed without an explicit ID", "[core][body][aabb
     }
 }
 
+/**
+ * @brief Body bounds are initialized from its position and collider.
+ * @test Body bounds are initialized from its position and collider.
+ */
 TEST_CASE("Body bounds are initialized from its position and collider", "[core][body][aabb]") {
     SECTION("Sphere radius extends equally along every axis") {
         constexpr Body body{7, {10.0, -5.0, 2.0}, {1.0, 2.0, 3.0}, 0.5, SphereCollider{3.0}};
@@ -73,6 +100,10 @@ TEST_CASE("Body bounds are initialized from its position and collider", "[core][
     }
 }
 
+/**
+ * @brief Moving a body refreshes its cached bounds.
+ * @test Moving a body refreshes its cached bounds.
+ */
 TEST_CASE("Moving a body refreshes its cached bounds", "[core][body][aabb]") {
     Body body;
     Vec3 extents{};
@@ -96,6 +127,10 @@ TEST_CASE("Moving a body refreshes its cached bounds", "[core][body][aabb]") {
     }
 }
 
+/**
+ * @brief Replacing a collider refreshes bounds at the current position.
+ * @test Replacing a collider refreshes bounds at the current position.
+ */
 TEST_CASE("Replacing a collider refreshes bounds at the current position", "[core][body][aabb]") {
     Body body{1, {10.0, -5.0, 2.0}, {}, 1.0, SphereCollider{3.0}};
     const AABB& cachedBounds = body.aabb();
@@ -117,6 +152,10 @@ TEST_CASE("Replacing a collider refreshes bounds at the current position", "[cor
     requireVec3(body.getPosition(), {-2.0, 4.0, -6.0});
 }
 
+/**
+ * @brief Changing velocity leaves current bounds unchanged.
+ * @test Changing velocity leaves current bounds unchanged.
+ */
 TEST_CASE("Changing velocity leaves current bounds unchanged", "[core][body][aabb]") {
     Body body{1, {1.0, -2.0, 3.0}, {}, 1.0, BoxCollider{{2.0, 3.0, 4.0}}};
     body.setVelocity({5.0, 6.0, -7.0});
@@ -125,6 +164,10 @@ TEST_CASE("Changing velocity leaves current bounds unchanged", "[core][body][aab
     requireBounds(body.aabb(), {-1.0, -5.0, -1.0}, {3.0, 1.0, 7.0});
 }
 
+/**
+ * @brief Zero-size colliders have point bounds.
+ * @test Zero-size colliders have point bounds.
+ */
 TEST_CASE("Zero-size colliders have point bounds", "[core][body][aabb]") {
     Body body{1, {-2.0, 4.0, 8.0}, {}, 1.0, SphereCollider{0.0}};
     requireBounds(body.aabb(), {-2.0, 4.0, 8.0}, {-2.0, 4.0, 8.0});

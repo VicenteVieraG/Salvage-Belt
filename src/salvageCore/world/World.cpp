@@ -1,3 +1,7 @@
+/**
+ * @file
+ * @brief World storage, validation, integration, and broad-phase collision queries.
+ */
 #include "world/World.hpp"
 #include "math/Physics.hpp"
 
@@ -8,16 +12,31 @@
 
 namespace salvage::core {
     namespace {
+        /**
+         * @brief Check that every vector component is finite.
+         * @param value Vector to inspect.
+         * @return True if no component is infinite or NaN.
+         */
         bool isFinite(const Vec3& value) noexcept {
             const auto [x, y, z] = value;
 
             return std::isfinite(x) && std::isfinite(y) && std::isfinite(z);
         }
 
+        /**
+         * @brief Validate a world-space vector.
+         * @param value Vector to inspect.
+         * @throws std::invalid_argument If any component is not finite.
+         */
         void validateVector(const Vec3& value) {
             if (!isFinite(value)) throw std::invalid_argument("World vectors must have finite components");
         }
 
+        /**
+         * @brief Validate collider dimensions.
+         * @param collider Shape to inspect.
+         * @throws std::invalid_argument If any extent is non-finite or negative.
+         */
         void validateCollider(const Collider& collider) {
             const Vec3 extents = std::visit([](const auto& shape) { return getExtents(shape); }, collider);
             if (const auto [x, y, z] = extents; !isFinite(extents) || x < 0.0 || y < 0.0 || z < 0.0) {
@@ -42,7 +61,6 @@ namespace salvage::core {
         }
 
         const auto id = static_cast<BodyId>(this->nextBodyId);
-        // Copy before growing storage: the input may be a body in this World.
         this->bodies.push_back(Body{
             id,
             body.getPosition(),
@@ -132,7 +150,6 @@ namespace salvage::core {
             const Vec3 position = velocityVerletPosition(body.getPosition(), body.getVelocity(), this->gravity, deltaTime);
             const Vec3 velocity = velocityVerletVelocity(body.getVelocity(), this->gravity, this->gravity, deltaTime);
 
-            // Uniform gravity is unchanged at the new position and time.
             body.setPosition(position);
             body.setVelocity(velocity);
         }
