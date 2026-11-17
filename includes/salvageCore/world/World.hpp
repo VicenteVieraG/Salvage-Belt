@@ -146,8 +146,9 @@ namespace salvage::core {
              * Touching bounds count as overlaps. Candidates can be false positives for the
              * actual shapes; no contact resolution is performed.
              * @return Independent body copies; editing them does not change the world.
-             * @note Checks all body pairs, giving quadratic time complexity.
+             * @note Currently delegates to BruteForce, with quadratic time complexity.
+             * @see BruteForce::broadPhase()
              */
-            std::vector<std::pair<Body, Body>> findPotentialCollisions() const;
+            std::vector<BodyPair> findPotentialCollisions() const;
     };
 }

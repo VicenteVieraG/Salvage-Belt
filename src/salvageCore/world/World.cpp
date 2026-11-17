@@ -3,6 +3,7 @@
  * @brief World storage, validation, integration, and broad-phase collision queries.
  */
 #include "world/World.hpp"
+#include "collision/BruteForce.hpp"
 #include "math/Physics.hpp"
 
 #include <algorithm>
@@ -155,17 +156,7 @@ namespace salvage::core {
         }
     }
 
-    std::vector<std::pair<Body, Body>> World::findPotentialCollisions() const {
-        std::vector<std::pair<Body, Body>> pairs;
-
-        for (std::size_t i = 0; i < this->bodies.size(); i++) {
-            for (std::size_t j = i + 1; j < this->bodies.size(); j++) {
-                const auto& [first, second] = std::make_pair(this->bodies[i], this->bodies[j]);
-
-                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) continue;
-                if (overlaps(first.aabb(), second.aabb())) pairs.emplace_back(first, second);
-            }
-        }
-        return pairs;
+    std::vector<BodyPair> World::findPotentialCollisions() const {
+        return BruteForce::broadPhase(this->bodies);
     }
 }

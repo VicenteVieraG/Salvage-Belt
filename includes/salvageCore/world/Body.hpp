@@ -13,8 +13,6 @@
 namespace salvage::core {
     /// @brief Identifier assigned locally by a World.
     using BodyId = std::uint32_t;
-    /// @brief Pair of independent body values.
-    using BodyPair = std::pair<Body, Body>;
 
     /**
      * @brief Sphere centered on the body position.
@@ -180,4 +178,7 @@ namespace salvage::core {
                 this->updateAABB();
             }
     };
+
+    /// @brief Pair of independent body values.
+    using BodyPair = std::pair<Body, Body>;
 };

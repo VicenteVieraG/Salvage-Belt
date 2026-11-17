@@ -8,4 +8,5 @@
 #pragma once
 
 #include "math/Physics.hpp"
+#include "collision/BruteForce.hpp"
 #include "world/World.hpp"

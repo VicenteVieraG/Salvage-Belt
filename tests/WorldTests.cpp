@@ -14,7 +14,7 @@ using namespace salvage::core;
 static_assert(std::is_same_v<decltype(std::declval<World&>().getBody(1)), const Body*>);
 static_assert(std::is_same_v<decltype(std::declval<World&>().getBodies()), std::span<const Body>>);
 static_assert(std::is_same_v<decltype(std::declval<const World&>().findPotentialCollisions()),
-    std::vector<std::pair<Body, Body>>>);
+    std::vector<BodyPair>>);
 
 namespace {
     /**
@@ -44,7 +44,7 @@ namespace {
      * @param actual Observed body pairs.
      * @param expected Required identifier pairs.
      */
-    void requirePairIds(const std::vector<std::pair<Body, Body>>& actual,
+    void requirePairIds(const std::vector<BodyPair>& actual,
         const std::vector<std::pair<BodyId, BodyId>>& expected) {
         REQUIRE(actual.size() == expected.size());
         for (std::size_t i = 0; i < actual.size(); ++i) {

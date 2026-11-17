@@ -16,14 +16,12 @@ namespace salvage::core {
      * @param acceleration Acceleration at the start of the step.
      * @param deltaTime Non-negative elapsed time.
      * @pre Inputs are finite and arithmetic remains in range; no validation is performed.
-     * @return position + velocity * deltaTime + acceleration * (0.5 * sqrt(deltaTime)).
-     * @warning The current implementation uses sqrt(deltaTime). The Velocity Verlet
-     * position formula requires deltaTime squared instead.
+     * @return position + velocity * deltaTime + acceleration * (0.5 * std::pow(deltaTime, 2)).
      * @see velocityVerletVelocity()
      */
     constexpr Vec3 velocityVerletPosition(
         const Vec3& position, const Vec3& velocity, const Vec3& acceleration, double deltaTime) noexcept {
-        return position + velocity * deltaTime + acceleration * (0.5 * std::sqrt(deltaTime));
+        return position + velocity * deltaTime + acceleration * (0.5 * std::pow(deltaTime, 2));
     }
 
     /**
