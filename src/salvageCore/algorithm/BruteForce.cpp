@@ -2,8 +2,8 @@
  * @file
  * @brief Brute-force broad-phase collision queries.
  */
-#include "collision/BruteForce.hpp"
-#include "math/AABB.hpp"
+#include "algorithm/BruteForce.hpp"
+#include "physics/AABB.hpp"
 
 #include <cstddef>
 

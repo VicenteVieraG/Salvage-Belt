@@ -3,7 +3,7 @@
  * @brief Integration tests for constant acceleration and a harmonic oscillator.
  */
 #include <catch2/catch_test_macros.hpp>
-#include "math/Physics.hpp"
+#include "physics/Physics.hpp"
 
 using namespace salvage::core;
 

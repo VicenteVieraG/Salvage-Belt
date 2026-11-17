@@ -7,6 +7,6 @@
  */
 #pragma once
 
-#include "math/Physics.hpp"
-#include "collision/BruteForce.hpp"
+#include "physics/Physics.hpp"
+#include "algorithm/BruteForce.hpp"
 #include "world/World.hpp"

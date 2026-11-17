@@ -7,8 +7,8 @@
 #include <cstdint>
 #include <utility>
 #include <variant>
-#include "../math/AABB.hpp"
-#include "../math/Vec3.hpp"
+#include "../physics/AABB.hpp"
+#include "../physics/Vec3.hpp"
 
 namespace salvage::core {
     /// @brief Identifier assigned locally by a World.

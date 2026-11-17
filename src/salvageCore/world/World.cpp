@@ -3,8 +3,8 @@
  * @brief World storage, validation, integration, and broad-phase collision queries.
  */
 #include "world/World.hpp"
-#include "collision/BruteForce.hpp"
-#include "math/Physics.hpp"
+#include "algorithm/BruteForce.hpp"
+#include "physics/Physics.hpp"
 
 #include <algorithm>
 #include <cmath>
