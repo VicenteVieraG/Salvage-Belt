@@ -7,6 +7,6 @@ add_library(salvageCore STATIC
     algorithm/BruteForceBroadPhase.cpp
     algorithm/KDTreeBroadPhase.cpp
 )
-# target_set_warnings(salvageCore)
+target_set_warnings(salvageCore OFF)
 target_enable_clang_tidy(salvageCore)
 target_enable_sanitizers(salvageCore)
