@@ -27,8 +27,6 @@ namespace salvage::core {
      * or references. Bodies must have unique IDs and valid finite AABBs.
      * Reacquire views after storage changes and call update() after body changes
      * before querying candidates. The bodies must remain unchanged during each call.
-     *
-     * @note KDTreeBroadPhase is a placeholder and appends no candidates.
      */
     class IBroadPhase {
         public:

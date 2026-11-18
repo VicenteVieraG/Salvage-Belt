@@ -71,7 +71,6 @@ const auto contacts = world.findContacts();
 
 ## Remaining scope
 
-- `Algorithm::KDTree` currently produces no collision candidates.
 - Detection is discrete: a fast object can cross an obstacle entirely within one
   step. Use a small fixed time step appropriate to speed and collider size.
   Continuous detection requires swept candidates and time-of-impact integration.

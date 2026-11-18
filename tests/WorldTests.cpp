@@ -459,20 +459,15 @@ TEST_CASE("World steps and queries use the selected broad phase", "[core][world]
         CAPTURE(algorithm);
         World world{algorithm, {-2.0, 0.0, 0.0}};
         world.setSolverSettings({.penetrationSlop = 0.0, .positionCorrection = 1.0});
-        world.createBody(Body{{}, {}, 0.0});
+        const auto fixed = world.createBody(Body{{}, {}, 0.0});
         const auto moving = world.createBody(Body{{2.0, 0.0, 0.0}, {}, 1.0, SphereCollider{}, Material{1.0, 0.0}});
 
-        auto strategy = makeBroadPhase(algorithm);
-        strategy->initialize(world.getBodies());
-        std::vector<CollisionPair> candidates;
-        strategy->findCandidates(world.getBodies(), candidates);
-        REQUIRE(world.findPotentialCollisions().size() == candidates.size());
-        REQUIRE(world.findContacts().size() == candidates.size());
+        requirePairIds(world.findPotentialCollisions(), {{fixed, moving}});
+        REQUIRE(world.findContacts().size() == 1);
 
         world.step(1.0);
-        const bool rebounds = !candidates.empty();
-        REQUIRE(world.getBody(moving)->getVelocity().x == (rebounds ? 2.0 : -2.0));
-        REQUIRE(world.getBody(moving)->getPosition().x == (rebounds ? 2.0 : 1.0));
+        REQUIRE(world.getBody(moving)->getVelocity().x == 2.0);
+        REQUIRE(world.getBody(moving)->getPosition().x == 2.0);
     }
     REQUIRE_THROWS_AS(World(static_cast<Algorithm>(-1)), std::invalid_argument);
 }

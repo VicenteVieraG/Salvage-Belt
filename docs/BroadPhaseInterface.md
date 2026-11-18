@@ -4,6 +4,13 @@
 the IDs of pairs whose AABBs overlap. Touching bounds and static/static pairs
 are included. The scan takes O(n²) time and O(1) space beyond the output.
 
+`KDTreeBroadPhase` returns the same overlapping pairs. It partitions AABB
+centers at the median, cycling through the x, y, and z axes. Each subtree stores
+the enclosing bounds of its bodies, so a query can skip a whole subtree when
+its bounds are disjoint from the query body. Initialization and updates rebuild
+the index in O(n log n) time on average using O(n) storage. Reporting all pairs
+can still take O(n²) time when many bounds overlap.
+
 ## Structure
 
 - Strategies receive `std::span<const Body>`, a read-only view without body copies.
@@ -13,7 +20,6 @@ are included. The scan takes O(n²) time and O(1) space beyond the output.
   body copies.
 - `IBroadPhase` defines `initialize`, `update`, and `findCandidates`, with a virtual
   destructor for ownership through `std::unique_ptr<IBroadPhase>`.
-- `KDTreeBroadPhase` is a placeholder and appends no candidates.
 - `Algorithm` and `makeBroadPhase()` select and create a strategy. The factory is
   the only selection switch; consumers call the virtual interface afterward.
 
@@ -59,11 +65,11 @@ int main() {
 ## Simulation use
 
 Choose the algorithm when constructing a world. `World{}` and `World{gravity}`
-default to brute force. The k-d tree is currently a placeholder. Selecting it
-advances bodies with forces and gravity but produces no collision response.
+default to brute force. Pass `Algorithm::KDTree` to use the k-d tree for collision
+queries and simulation steps.
 
 ```cpp
-World world{Algorithm::BruteForce, {0.0, -9.81, 0.0}};
+World world{Algorithm::KDTree, {0.0, -9.81, 0.0}};
 world.generateRandomBodies(100, 42);
 world.step(1.0 / 120.0);
 ```

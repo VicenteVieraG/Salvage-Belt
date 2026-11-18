@@ -79,7 +79,7 @@ namespace salvage::core {
 
             /**
              * @brief Choose the broad phase for this world's steps and collision queries.
-             * @param algorithm Strategy to use. KDTree currently produces no candidates.
+             * @param algorithm Broad-phase strategy to use.
              * @param gravity Finite uniform acceleration, defaulting to zero.
              * @throws std::invalid_argument If the algorithm is unknown or gravity is non-finite.
              */
