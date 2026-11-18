@@ -289,13 +289,15 @@ TEST_CASE("Zero-gravity stepping moves dynamic bodies and refreshes bounds", "[c
 TEST_CASE("Gravity uses Velocity Verlet independently of dynamic mass", "[core][world][step]") {
     World world{{2.0, -4.0, 6.0}};
     const BodyId first = world.createBody();
-    const BodyId second = world.createBody(Body{{}, {}, 0.25});
+    // Keep these bodies apart: this test isolates gravity from contact response.
+    const BodyId second = world.createBody(Body{{10.0, 0.0, 0.0}, {}, 0.25});
     world.step(0.5);
 
     for (const BodyId id : {first, second}) {
         requireVec3(world.getBody(id)->getVelocity(), {1.0, -2.0, 3.0});
-        requireVec3(world.getBody(id)->getPosition(), {0.25, -0.5, 0.75});
-        requireBounds(*world.getBody(id), {-0.75, -1.5, -0.25}, {1.25, 0.5, 1.75});
+        const double offset = id == first ? 0.0 : 10.0;
+        requireVec3(world.getBody(id)->getPosition(), {offset + 0.25, -0.5, 0.75});
+        requireBounds(*world.getBody(id), {offset - 0.75, -1.5, -0.25}, {offset + 1.25, 0.5, 1.75});
     }
     world.step(0.5);
     requireVec3(world.getBody(first)->getVelocity(), {2.0, -4.0, 6.0});

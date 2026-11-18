@@ -44,6 +44,13 @@ namespace salvage::core {
                 throw std::invalid_argument("Collider extents must be finite and non-negative");
             }
         }
+
+        void validateMaterial(const Material& material) {
+            if (!std::isfinite(material.restitution) || material.restitution < 0.0 || material.restitution > 1.0
+                || !std::isfinite(material.friction) || material.friction < 0.0) {
+                throw std::invalid_argument("Material requires restitution in [0, 1] and finite non-negative friction");
+            }
+        }
     }
 
     World::World(const Vec3& gravity) {
@@ -54,6 +61,7 @@ namespace salvage::core {
         validateVector(body.getPosition());
         validateVector(body.getVelocity());
         validateCollider(body.getCollider());
+        validateMaterial(body.getMaterial());
         if (!std::isfinite(body.getInverseMass()) || body.getInverseMass() < 0.0) {
             throw std::invalid_argument("Inverse mass must be finite and non-negative");
         }
@@ -67,7 +75,8 @@ namespace salvage::core {
             body.getPosition(),
             body.getVelocity(),
             body.getInverseMass(),
-            body.getCollider()
+            body.getCollider(),
+            body.getMaterial()
         });
         this->nextBodyId++;
         return id;
@@ -77,11 +86,13 @@ namespace salvage::core {
         if(const auto it = std::ranges::lower_bound(this->bodies, id, {}, &Body::getId);
             it == this->bodies.end() || it->getId() != id) return false;
         else this->bodies.erase(it);
+        this->forces.erase(id);
         return true;
     }
 
     void World::clear() noexcept {
         this->bodies.clear();
+        this->forces.clear();
     }
 
     std::size_t World::getBodyCount() const noexcept {
@@ -135,6 +146,52 @@ namespace salvage::core {
         return this->gravity;
     }
 
+    bool World::setBodyMaterial(BodyId id, const Material& material) {
+        if (Body* body = this->findBody(id)) {
+            validateMaterial(material);
+            body->setMaterial(material);
+            return true;
+        }
+        return false;
+    }
+
+    const SolverSettings& World::getSolverSettings() const noexcept {
+        return this->solverSettings;
+    }
+
+    bool World::addBodyForce(BodyId id, const Vec3& force) {
+        const Body* body = this->getBody(id);
+        if (!body) return false;
+        validateVector(force);
+        if (body->getInverseMass() == 0.0) return true;
+        const auto pending = this->forces.find(id);
+        const Vec3 sum = pending == this->forces.end() ? force : pending->second + force;
+        validateVector(sum);
+        this->forces.insert_or_assign(id, sum);
+        return true;
+    }
+
+    bool World::applyBodyImpulse(BodyId id, const Vec3& impulse) {
+        Body* body = this->findBody(id);
+        if (!body) return false;
+        validateVector(impulse);
+        if (body->getInverseMass() == 0.0) return true;
+        const Vec3 velocity = body->getVelocity() + impulse * body->getInverseMass();
+        validateVector(velocity);
+        body->setVelocity(velocity);
+        return true;
+    }
+
+    void World::setSolverSettings(const SolverSettings& settings) {
+        if (settings.velocityIterations == 0 || settings.positionIterations == 0
+            || !std::isfinite(settings.penetrationSlop) || settings.penetrationSlop < 0.0
+            || !std::isfinite(settings.positionCorrection) || settings.positionCorrection <= 0.0 || settings.positionCorrection > 1.0
+            || !std::isfinite(settings.restitutionThreshold) || settings.restitutionThreshold < 0.0) {
+            throw std::invalid_argument("Invalid contact solver settings");
+        }
+        this->solverSettings = settings;
+    }
+
     void World::setGravity(const Vec3& gravity) {
         validateVector(gravity);
         this->gravity = gravity;
@@ -148,12 +205,47 @@ namespace salvage::core {
         for (Body& body : this->bodies) {
             if (body.getInverseMass() == 0.0) continue;
 
-            const Vec3 position = velocityVerletPosition(body.getPosition(), body.getVelocity(), this->gravity, deltaTime);
-            const Vec3 velocity = velocityVerletVelocity(body.getVelocity(), this->gravity, this->gravity, deltaTime);
+            const auto force = this->forces.find(body.getId());
+            const Vec3 acceleration = this->gravity + (force == this->forces.end() ? Vec3{} : force->second * body.getInverseMass());
+            const Vec3 position = velocityVerletPosition(body.getPosition(), body.getVelocity(), acceleration, deltaTime);
+            const Vec3 velocity = velocityVerletVelocity(body.getVelocity(), acceleration, acceleration, deltaTime);
 
             body.setPosition(position);
             body.setVelocity(velocity);
         }
+
+        this->forces.clear();
+
+        solveContactVelocities(this->bodies, this->findContacts(), this->solverSettings);
+        for (std::size_t iteration = 0; iteration < this->solverSettings.positionIterations; ++iteration) {
+            const auto contacts = this->findContacts();
+            bool corrected = false;
+            for (const Contact& contact : contacts) {
+                Body* first = this->findBody(contact.first);
+                Body* second = this->findBody(contact.second);
+                // Earlier corrections may have changed this pair's geometry.
+                if (const auto current = detectContact(*first, *second);
+                    current && current->penetration > this->solverSettings.penetrationSlop) {
+                    correctContactPosition(*first, *second, *current, this->solverSettings);
+                    corrected = true;
+                }
+            }
+            if (!corrected) break;
+        }
+    }
+
+    std::vector<Contact> World::findContacts() const {
+        std::vector<Contact> contacts;
+        for (std::size_t i = 0; i < this->bodies.size(); ++i) {
+            for (std::size_t j = i + 1; j < this->bodies.size(); ++j) {
+                const Body& first = this->bodies[i];
+                const Body& second = this->bodies[j];
+                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) continue;
+                if (!overlaps(first.aabb(), second.aabb())) continue;
+                if (const auto contact = detectContact(first, second)) contacts.push_back(*contact);
+            }
+        }
+        return contacts;
     }
 
     std::vector<BodyPair> World::findPotentialCollisions() const {

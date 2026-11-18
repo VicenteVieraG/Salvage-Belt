@@ -8,6 +8,8 @@
 #pragma once
 
 #include "physics/Physics.hpp"
+#include "physics/Contact.hpp"
+#include "physics/ContactSolver.hpp"
 #include "algorithm/BroadPhaseFactory.hpp"
 #include "algorithm/BruteForceBroadPhase.hpp"
 #include "algorithm/KDTreeBroadPhase.hpp"

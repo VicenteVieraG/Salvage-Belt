@@ -8,14 +8,16 @@
 #include <cstdint>
 #include <span>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 #include "Body.hpp"
+#include "physics/ContactSolver.hpp"
 
 namespace salvage::core {
     /**
      * @brief Own bodies and advance their translation under uniform gravity.
      * IDs are local to each World. Bodies are stored in creation order.
-     * The simulation updates position, velocity, and bounds; it does not resolve contacts.
+     * The simulation resolves discrete contacts between spheres and axis-aligned boxes.
      */
     class World {
         private:
@@ -23,6 +25,8 @@ namespace salvage::core {
             std::vector<Body> bodies{};
             std::uint64_t nextBodyId{}; ///< Next ID, wide enough to detect BodyId exhaustion.
             Vec3 gravity{}; ///< Uniform acceleration applied to dynamic bodies.
+            SolverSettings solverSettings{}; ///< Iteration counts and contact tolerances.
+            std::unordered_map<BodyId, Vec3> forces{}; ///< Accumulated external forces for the next positive step.
 
             /**
              * @brief Find a mutable body by its world-local ID.
@@ -46,7 +50,7 @@ namespace salvage::core {
              * @param body State to copy; its input ID is ignored.
              * @return The newly assigned world-local identifier.
              * @throws std::invalid_argument If position or velocity is non-finite, or if
-             * inverse mass or collider extents are non-finite or negative.
+             * inverse mass or collider extents are non-finite or negative, or material is invalid.
              * @throws std::overflow_error If all BodyId values have been used.
              * @note Reacquire body pointers and views after this call.
              */
@@ -59,7 +63,7 @@ namespace salvage::core {
              */
             bool removeBody(BodyId id) noexcept;
             /**
-             * @brief Remove all bodies while preserving gravity and the next ID.
+             * @brief Remove all bodies and pending forces, preserving gravity, solver settings, and the next ID.
              * @note Invalidates all body pointers and views.
              */
             void clear() noexcept;
@@ -115,6 +119,46 @@ namespace salvage::core {
             bool setBodyCollider(BodyId id, const Collider& collider);
 
             /**
+             * @brief Set a body's bounce and friction properties.
+             * @param id Identifier to edit.
+             * @param material Restitution in [0, 1] and finite non-negative friction.
+             * @return True if updated, false for an unknown ID without validating the value.
+             * @throws std::invalid_argument If material is invalid; the body is unchanged.
+             */
+            bool setBodyMaterial(BodyId id, const Material& material);
+
+            /**
+             * @brief Accumulate a constant external force for the next positive-duration step.
+             * Acceleration is gravity + total force * inverse mass. Forces are cleared after
+             * integration; zero/invalid steps preserve them. Static bodies ignore valid forces.
+             * @param id Body receiving the force.
+             * @param force Finite force vector, added to any already pending force.
+             * @return True if the body exists, false otherwise without validation.
+             * @throws std::invalid_argument If force or its accumulated sum is non-finite; state is unchanged.
+             */
+            bool addBodyForce(BodyId id, const Vec3& force);
+
+            /**
+             * @brief Apply an instantaneous external impulse to a dynamic body.
+             * Static bodies ignore valid impulses; pending forces are unaffected.
+             * @param id Body receiving the impulse.
+             * @param impulse Finite impulse; velocity change is impulse * inverse mass.
+             * @return True if the body exists, false otherwise without validation.
+             * @throws std::invalid_argument If impulse or resulting velocity is non-finite; state is unchanged.
+             */
+            bool applyBodyImpulse(BodyId id, const Vec3& impulse);
+
+            /** @brief Read contact solver controls. @return Current settings. */
+            const SolverSettings& getSolverSettings() const noexcept;
+            /**
+             * @brief Configure contact solver iterations and tolerances.
+             * @param settings Positive iteration counts, finite non-negative slop and bounce
+             * threshold, and a finite correction fraction in (0, 1].
+             * @throws std::invalid_argument If settings are invalid; existing settings are unchanged.
+             */
+            void setSolverSettings(const SolverSettings& settings);
+
+            /**
              * @brief Read the uniform acceleration.
              * @return A reference to the stored gravity vector.
              */
@@ -127,18 +171,28 @@ namespace salvage::core {
             void setGravity(const Vec3& gravity);
 
             /**
-             * @brief Advance dynamic bodies using the position and velocity integration helpers.
-             * Gravity is constant throughout each step. Bodies with zero inverse mass remain
+             * @brief Integrate movement, detect contacts, solve impulses, and correct overlap.
+             * Gravity and accumulated external forces are constant throughout each step.
+             * Bodies with zero inverse mass remain
              * unchanged, including their velocity. Updated positions refresh cached bounds.
              * @param deltaTime Finite, non-negative elapsed time; zero is a no-op.
-             * @pre Resulting position and velocity arithmetic remains in range.
+             * @pre Intermediate integration and contact arithmetic remains in range.
              * @throws std::invalid_argument If deltaTime is non-finite or negative; bodies are unchanged.
-             * @note Position integration currently has the formula limitation documented in
-             * velocityVerletPosition().
+             * @note Discrete collision detection can miss objects crossed entirely within a
+             * step. Use sufficiently small steps. Rotation is not modeled. New contacts created
+             * by position correction get velocity response on the next step.
              * @see velocityVerletPosition()
              * @see velocityVerletVelocity()
              */
             void step(double deltaTime);
+
+            /**
+             * @brief Query confirmed contacts without changing the world.
+             * Uses the existing quadratic AABB scan, rejects shape-level false positives,
+             * omits static/static pairs, and includes touching shapes.
+             * @return Independent contact values containing world-local body IDs.
+             */
+            std::vector<Contact> findContacts() const;
 
             /**
              * @brief Find potential collisions using inclusive AABB overlap tests.

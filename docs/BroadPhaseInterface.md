@@ -1,5 +1,10 @@
 # Broad-phase interface prototype
 
+**Current physics:** The shared narrow phase and contact solver are now implemented
+in `World::step()` using the existing AABB scan. See [PhysicsStep.md](PhysicsStep.md).
+The strategies themselves remain no-op placeholders; the prototype notes below
+describe that interface boundary.
+
 This iteration introduces the strategy boundary for review. The old standalone
 brute-force module has been removed; its existing pair scan now lives inside
 `World::findPotentialCollisions()` until strategy integration. The new strategies

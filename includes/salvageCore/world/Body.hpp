@@ -9,6 +9,7 @@
 #include <variant>
 #include "../physics/AABB.hpp"
 #include "../physics/Vec3.hpp"
+#include "../physics/Material.hpp"
 
 namespace salvage::core {
     /// @brief Identifier assigned locally by a World.
@@ -83,6 +84,7 @@ namespace salvage::core {
             Vec3 velocity{}; ///< Linear velocity.
 
             double inverseMass{ 1.0 }; ///< Reciprocal mass; zero denotes a static body.
+            Material material{}; ///< Contact restitution and friction.
 
             Collider collider{ SphereCollider{} }; ///< Centered collision shape.
             AABB bounds{ computeAABB(this->position, this->collider) }; ///< Cached bounds matching position and collider.
@@ -101,10 +103,12 @@ namespace salvage::core {
              * @param velocity Initial linear velocity.
              * @param inverseMass Reciprocal mass; zero denotes a static body.
              * @param collider Centered collision shape.
+             * @param material Contact surface properties.
              */
             constexpr Body(
-                BodyId id, const Vec3& position, const Vec3& velocity, double inverseMass, const Collider& collider) noexcept:
-                id{id}, position{position}, velocity{velocity}, inverseMass{inverseMass}, collider{collider}
+                BodyId id, const Vec3& position, const Vec3& velocity, double inverseMass, const Collider& collider,
+                const Material& material = {}) noexcept:
+                id{id}, position{position}, velocity{velocity}, inverseMass{inverseMass}, material{material}, collider{collider}
             {};
 
             /**
@@ -113,12 +117,13 @@ namespace salvage::core {
              * @param velocity Initial linear velocity, zero by default.
              * @param inverseMass Reciprocal mass, one by default; zero denotes a static body.
              * @param collider Centered collision shape, a unit sphere by default.
+             * @param material Contact surface properties.
              * @note World assigns IDs independently.
              */
             explicit constexpr Body(
                 const Vec3& position, const Vec3& velocity = {}, double inverseMass = 1.0,
-                const Collider& collider = SphereCollider{}) noexcept:
-                Body{0, position, velocity, inverseMass, collider}
+                const Collider& collider = SphereCollider{}, const Material& material = {}) noexcept:
+                Body{0, position, velocity, inverseMass, collider, material}
             {};
 
             /**
@@ -141,6 +146,10 @@ namespace salvage::core {
              * @return The stored inverse mass; zero denotes a static body.
              */
             constexpr double getInverseMass() const noexcept { return this->inverseMass; }
+            /** @brief Read contact properties. @return The stored material. */
+            constexpr const Material& getMaterial() const noexcept { return this->material; }
+            /** @brief Set contact properties without validation. @param value New material. */
+            constexpr void setMaterial(const Material& value) noexcept { this->material = value; }
             /**
              * @brief Read the collision shape.
              * @return A reference to the stored collider.
