@@ -3,6 +3,7 @@
  * @brief World ownership, validation, integration, and collision-candidate tests.
  */
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -95,6 +96,136 @@ TEST_CASE("World creates bodies with unique IDs", "[core][world]") {
     requireBounds(*world.getBody(box), {2.0, -4.0, -2.0}, {4.0, 0.0, 4.0});
     REQUIRE(world.getBodies()[0].getId() == sphere);
     REQUIRE(world.getBodies()[1].getId() == box);
+}
+
+TEST_CASE("Random bodies repeat from a seed and fit within configured bounds", "[core][world][generation]") {
+    const RandomBodySettings settings{
+        .spawnBounds = {{-10.0, -12.0, -14.0}, {12.0, 14.0, 16.0}},
+        .extent = {0.25, 1.0},
+        .velocity = {-2.0, 1.0},
+        .inverseMass = {0.5, 1.5},
+        .restitution = {0.1, 0.8},
+        .friction = {0.2, 0.9}
+    };
+    const auto inRange = [](double value, const RandomBodySettings::Range& range) {
+        return range.min <= value && value <= range.max;
+    };
+
+    World world;
+    World repeated;
+    constexpr std::size_t count = 48;
+    world.generateRandomBodies(count, 42, settings);
+    repeated.generateRandomBodies(count, 42, settings);
+    REQUIRE(world.getBodyCount() == count);
+    REQUIRE(repeated.getBodyCount() == count);
+    REQUIRE(world.findPotentialCollisions().empty());
+
+    World different;
+    different.generateRandomBodies(1, 43, settings);
+    REQUIRE(different.getBodies().front().getPosition().x != world.getBodies().front().getPosition().x);
+
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto& body = world.getBodies()[i];
+        const auto& copy = repeated.getBodies()[i];
+        const Vec3 extents = std::visit([](const auto& shape) { return getExtents(shape); }, body.getCollider());
+        REQUIRE(body.getId() == i);
+        REQUIRE(body.getCollider().index() == copy.getCollider().index());
+        requireVec3(body.getPosition(), copy.getPosition());
+        requireVec3(body.getVelocity(), copy.getVelocity());
+        requireBounds(body, copy.aabb().min, copy.aabb().max);
+        for (const auto axis : {&Vec3::x, &Vec3::y, &Vec3::z}) {
+            REQUIRE(body.aabb().min.*axis >= settings.spawnBounds.min.*axis);
+            REQUIRE(body.aabb().max.*axis <= settings.spawnBounds.max.*axis);
+            REQUIRE(inRange(extents.*axis, settings.extent));
+            REQUIRE(inRange(body.getVelocity().*axis, settings.velocity));
+        }
+        REQUIRE(inRange(body.getInverseMass(), settings.inverseMass));
+        REQUIRE(body.getInverseMass() == copy.getInverseMass());
+        REQUIRE(inRange(body.getMaterial().restitution, settings.restitution));
+        REQUIRE(body.getMaterial().restitution == copy.getMaterial().restitution);
+        REQUIRE(inRange(body.getMaterial().friction, settings.friction));
+        REQUIRE(body.getMaterial().friction == copy.getMaterial().friction);
+    }
+}
+
+TEST_CASE("Crowded random placement preserves the world and its next body ID", "[core][world][generation]") {
+    const RandomBodySettings settings{
+        .spawnBounds = {{-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0}},
+        .extent = {1.0, 1.0},
+        .velocity = {0.0, 0.0},
+        .inverseMass = {0.0, 0.0},
+        .maxPlacementAttempts = 2
+    };
+    World world;
+    const BodyId existing = world.createBody(Body{{4.0, 0.0, 0.0}});
+    REQUIRE_THROWS_AS(world.generateRandomBodies(2, 42, settings), std::runtime_error);
+    REQUIRE(world.getBodyCount() == 1);
+    requireVec3(world.getBody(existing)->getPosition(), {4.0, 0.0, 0.0});
+
+    world.generateRandomBodies(1, 42, settings);
+    REQUIRE(world.getBodyCount() == 2);
+    REQUIRE(world.getBodies().back().getId() == existing + 1);
+    REQUIRE(world.getBodies().back().getInverseMass() == 0.0);
+    requireVec3(world.getBodies().back().getVelocity(), {});
+    requireBounds(world.getBodies().back(), settings.spawnBounds.min, settings.spawnBounds.max);
+
+    REQUIRE_THROWS_AS(world.generateRandomBodies(1, 42, settings), std::runtime_error);
+    REQUIRE(world.getBodyCount() == 2);
+    REQUIRE(world.createBody() == existing + 2);
+}
+
+TEST_CASE("Random generation rejects invalid limits before adding bodies", "[core][world][generation]") {
+    World world;
+    RandomBodySettings settings;
+    SECTION("Reversed extent range") { settings.extent = {2.0, 1.0}; }
+    SECTION("Non-finite velocity range") { settings.velocity.max = std::numeric_limits<double>::infinity(); }
+    SECTION("Restitution outside the material limits") { settings.restitution.max = 1.1; }
+    SECTION("Reversed spawn bounds") { settings.spawnBounds.min.z = settings.spawnBounds.max.z + 1.0; }
+    SECTION("Zero placement attempts") { settings.maxPlacementAttempts = 0; }
+
+    REQUIRE_NOTHROW(world.generateRandomBodies(0, 42, settings));
+    REQUIRE_THROWS_AS(world.generateRandomBodies(1, 42, settings), std::invalid_argument);
+    REQUIRE(world.getBodyCount() == 0);
+    REQUIRE(world.createBody() == 0);
+}
+
+TEST_CASE("Random spawn space scales with body count and spacing", "[core][world][generation]") {
+    const auto small = RandomBodySettings::forBodyCount(8, 5.0);
+    const auto large = RandomBodySettings::forBodyCount(64, 5.0);
+    const auto wider = RandomBodySettings::forBodyCount(8, 10.0);
+    REQUIRE(small.spawnBounds.max.x == Catch::Approx(5.0));
+    REQUIRE(large.spawnBounds.min.y == Catch::Approx(-10.0));
+    REQUIRE(wider.spawnBounds.max.z == Catch::Approx(10.0));
+    REQUIRE_THROWS_AS(RandomBodySettings::forBodyCount(8, 0.0), std::invalid_argument);
+
+    World world;
+    world.generateRandomBodies(8'000, 42);
+    REQUIRE(world.getBodyCount() == 8'000);
+    bool outsideOriginalBounds = false;
+    const auto bounds = RandomBodySettings::forBodyCount(8'000).spawnBounds;
+    for (const Body& body : world.getBodies()) {
+        REQUIRE(body.aabb().min.x >= bounds.min.x);
+        REQUIRE(body.aabb().max.x <= bounds.max.x);
+        outsideOriginalBounds |= body.aabb().max.x > 50.0;
+    }
+    REQUIRE(outsideOriginalBounds);
+}
+
+TEST_CASE("Random placement checks large obstacles extending outside the spawn region", "[core][world][generation]") {
+    const RandomBodySettings settings{.extent = {0.25, 0.25}};
+    World reference;
+    reference.generateRandomBodies(1, 42, settings);
+    const Body& candidate = reference.getBodies().front();
+    const Body obstacle{candidate.getPosition() + Vec3{128.0, 0.0, 0.0}, {}, 0.0,
+        BoxCollider{{128.0, 4.0, 4.0}}};
+    REQUIRE(obstacle.getPosition().x > settings.spawnBounds.max.x);
+    REQUIRE(overlaps(candidate.aabb(), obstacle.aabb()));
+
+    World world;
+    world.createBody(obstacle);
+    world.generateRandomBodies(128, 42, settings);
+    REQUIRE(world.getBodyCount() == 129);
+    REQUIRE(world.findPotentialCollisions().empty());
 }
 
 /**

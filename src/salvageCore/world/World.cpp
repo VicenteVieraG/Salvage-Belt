@@ -1,14 +1,16 @@
 /**
  * @file
- * @brief World storage, validation, integration, and broad-phase collision queries.
+ * @brief World storage, body generation, integration, and broad-phase collision queries.
  */
 #include "world/World.hpp"
+#include "PlacementIndex.hpp"
 #include "physics/AABB.hpp"
 #include "physics/Physics.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <random>
 #include <stdexcept>
 
 namespace salvage::core {
@@ -51,6 +53,40 @@ namespace salvage::core {
                 throw std::invalid_argument("Material requires restitution in [0, 1] and finite non-negative friction");
             }
         }
+
+        bool componentwiseLessEqual(const Vec3& lhs, const Vec3& rhs) noexcept {
+            return lhs.x <= rhs.x && lhs.y <= rhs.y && lhs.z <= rhs.z;
+        }
+
+        bool isOrderedFiniteRange(const RandomBodySettings::Range& range) noexcept {
+            return std::isfinite(range.min) && std::isfinite(range.max) && range.min <= range.max;
+        }
+
+        void validateRandomBodySettings(const RandomBodySettings& settings) {
+            const auto& [min, max] = settings.spawnBounds;
+            if (!isFinite(min) || !isFinite(max) || !componentwiseLessEqual(min, max)) {
+                throw std::invalid_argument("Spawn bounds must be finite and ordered");
+            }
+            if (!isOrderedFiniteRange(settings.extent) || settings.extent.min <= 0.0
+                || !isOrderedFiniteRange(settings.velocity)
+                || !isOrderedFiniteRange(settings.inverseMass) || settings.inverseMass.min < 0.0
+                || !isOrderedFiniteRange(settings.restitution) || !isOrderedFiniteRange(settings.friction)) {
+                throw std::invalid_argument("Invalid random body attribute range");
+            }
+            validateMaterial({settings.restitution.min, settings.friction.min});
+            validateMaterial({settings.restitution.max, settings.friction.max});
+            if (settings.maxPlacementAttempts == 0) {
+                throw std::invalid_argument("Random body placement requires at least one attempt per body");
+            }
+        }
+    }
+
+    RandomBodySettings RandomBodySettings::forBodyCount(std::size_t count, double spacing) {
+        const double halfSize = (0.5 * std::cbrt(static_cast<double>(std::max(count, std::size_t{1})))) * spacing;
+        if (!std::isfinite(halfSize) || halfSize <= 0.0) {
+            throw std::invalid_argument("Body spacing must produce a positive, finite spawn half-size");
+        }
+        return {.spawnBounds = {{-halfSize, -halfSize, -halfSize}, {halfSize, halfSize, halfSize}}};
     }
 
     World::World(const Vec3& gravity) {
@@ -80,6 +116,78 @@ namespace salvage::core {
         });
         this->nextBodyId++;
         return id;
+    }
+
+    void World::generateRandomBodies(std::size_t count, std::uint64_t seed) {
+        const auto settings = count > 1000 ? RandomBodySettings::forBodyCount(count) : RandomBodySettings{};
+        this->generateRandomBodies(count, seed, settings);
+    }
+
+    void World::generateRandomBodies(std::size_t count, std::uint64_t seed, const RandomBodySettings& settings) {
+        if (count == 0) return;
+        validateRandomBodySettings(settings);
+
+        constexpr auto idCapacity = static_cast<std::uint64_t>(std::numeric_limits<BodyId>::max()) + 1;
+        if (count > idCapacity - this->nextBodyId) {
+            throw std::overflow_error("Too few world body IDs for the requested batch");
+        }
+
+        // Stage the full batch using the normal body creation path before publishing it.
+        World staged;
+        staged.nextBodyId = this->nextBodyId;
+        staged.bodies.reserve(count);
+
+        detail::PlacementIndex placement{settings.spawnBounds, settings.extent.max, count};
+        for (const Body& body : this->bodies) placement.add(body.aabb());
+
+        std::mt19937_64 generator(seed);
+        std::uniform_real_distribution<double> unit(0.0, 1.0);
+        std::bernoulli_distribution chooseSphere(0.5);
+        const auto sample = [&](const RandomBodySettings::Range& range) {
+            return std::clamp(std::lerp(range.min, range.max, unit(generator)), range.min, range.max);
+        };
+
+        const auto& [spawnMin, spawnMax] = settings.spawnBounds;
+        std::size_t attempts = 0;
+        while (staged.getBodyCount() < count) {
+            if (attempts == settings.maxPlacementAttempts) {
+                throw std::runtime_error("Could not place a random body within the attempt limit");
+            }
+            ++attempts;
+
+            const Collider collider = chooseSphere(generator)
+                ? Collider{SphereCollider{sample(settings.extent)}}
+                : Collider{BoxCollider{{sample(settings.extent), sample(settings.extent), sample(settings.extent)}}};
+            const Vec3 extents = std::visit([](const auto& shape) { return getExtents(shape); }, collider);
+            const Vec3 centerMin = spawnMin + extents;
+            const Vec3 centerMax = spawnMax - extents;
+            if (!componentwiseLessEqual(centerMin, centerMax)) continue;
+
+            const Vec3 position{
+                sample({centerMin.x, centerMax.x}),
+                sample({centerMin.y, centerMax.y}),
+                sample({centerMin.z, centerMax.z})
+            };
+            const AABB bounds = computeAABB(position, collider);
+            // Verify containment after rounding the center and its bounds.
+            if (!componentwiseLessEqual(spawnMin, bounds.min) || !componentwiseLessEqual(bounds.max, spawnMax)) continue;
+
+            if (placement.overlapsAny(bounds)) continue;
+
+            const Vec3 velocity{sample(settings.velocity), sample(settings.velocity), sample(settings.velocity)};
+            const double inverseMass = sample(settings.inverseMass);
+            const Material material{sample(settings.restitution), sample(settings.friction)};
+            staged.createBody(Body{position, velocity, inverseMass, collider, material});
+            placement.add(staged.bodies.back().aabb());
+            attempts = 0;
+        }
+
+        if (this->bodies.empty()) {
+            this->bodies.swap(staged.bodies);
+        } else {
+            this->bodies.insert(this->bodies.end(), staged.bodies.begin(), staged.bodies.end());
+        }
+        this->nextBodyId = staged.nextBodyId;
     }
 
     bool World::removeBody(BodyId id) noexcept {

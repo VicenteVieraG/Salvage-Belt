@@ -14,6 +14,32 @@
 #include "physics/ContactSolver.hpp"
 
 namespace salvage::core {
+    /** @brief Bounds and placement controls for World::generateRandomBodies(). */
+    struct RandomBodySettings {
+        /** @brief Inclusive finite range. Equal endpoints fix the attribute's value. */
+        struct Range {
+            double min{};
+            double max{};
+        };
+
+        AABB spawnBounds{{-50.0, -50.0, -50.0}, {50.0, 50.0, 50.0}}; ///< Contains the entire collider.
+        Range extent{0.5, 2.0}; ///< Positive sphere radius or per-axis box half-extent.
+        Range velocity{-5.0, 5.0}; ///< Initial velocity on each axis.
+        Range inverseMass{0.25, 2.0}; ///< Non-negative inverse mass. Zero makes the body static.
+        Range restitution{0.0, 1.0}; ///< Bounciness in [0, 1].
+        Range friction{0.0, 1.0}; ///< Non-negative friction coefficient.
+        std::size_t maxPlacementAttempts{128}; ///< Positive retry budget per body.
+
+        /**
+         * @brief Set the spawn bounds to a cube centered at the origin.
+         * @param count Number of bodies used to size the cube. Zero is treated as one.
+         * @param spacing Positive finite length whose cube is the target volume per body.
+         * @return Default settings with a cube side length of spacing times the cube root of count.
+         * @throws std::invalid_argument If spacing or the resulting half-size is invalid.
+         */
+        static RandomBodySettings forBodyCount(std::size_t count, double spacing = 10.0);
+    };
+
     /**
      * @brief Own bodies and advance their translation under uniform gravity.
      * IDs are local to each World. Bodies are stored in creation order.
@@ -55,6 +81,29 @@ namespace salvage::core {
              * @note Reacquire body pointers and views after this call.
              */
             BodyId createBody(const Body& body = {});
+
+            /**
+             * @brief Generate with default attributes and a cube centered at the origin.
+             * The side length is at least 100 and grows with the cube root of count above 1,000 bodies.
+             * @see generateRandomBodies(std::size_t, std::uint64_t, const RandomBodySettings&)
+             */
+            void generateRandomBodies(std::size_t count, std::uint64_t seed);
+
+            /**
+             * @brief Append a reproducible batch of random spheres and boxes.
+             * Generated bounds must fit inside the spawn region and be disjoint from all
+             * existing and newly placed bounds. A failed batch leaves the world and its IDs unchanged.
+             * @param count Number of bodies to append. Zero is a no-op.
+             * @param seed Seed for the generator. Reuse with the same settings and starting
+             * geometry to reproduce the layout on the same standard library implementation.
+             * @param settings Finite ordered spawn bounds, attribute ranges, and placement budget.
+             * @throws std::invalid_argument If settings are invalid.
+             * @throws std::overflow_error If there are too few available body IDs.
+             * @throws std::runtime_error If placement runs out of attempts.
+             * @note Reacquire body pointers and views after successful generation.
+             */
+            void generateRandomBodies(std::size_t count, std::uint64_t seed, const RandomBodySettings& settings);
+
             /**
              * @brief Remove a body while preserving the remaining creation order.
              * @param id Identifier of the body to remove.
