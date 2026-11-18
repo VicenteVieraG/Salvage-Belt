@@ -8,5 +8,7 @@
 #pragma once
 
 #include "physics/Physics.hpp"
-#include "algorithm/BruteForce.hpp"
+#include "algorithm/BroadPhaseFactory.hpp"
+#include "algorithm/BruteForceBroadPhase.hpp"
+#include "algorithm/KDTreeBroadPhase.hpp"
 #include "world/World.hpp"

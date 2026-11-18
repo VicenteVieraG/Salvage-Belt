@@ -3,7 +3,7 @@
  * @brief World storage, validation, integration, and broad-phase collision queries.
  */
 #include "world/World.hpp"
-#include "algorithm/BruteForce.hpp"
+#include "physics/AABB.hpp"
 #include "physics/Physics.hpp"
 
 #include <algorithm>
@@ -157,6 +157,18 @@ namespace salvage::core {
     }
 
     std::vector<BodyPair> World::findPotentialCollisions() const {
-        return BruteForce::broadPhase(this->bodies);
+        // Preserve the existing query until the strategy interface is integrated.
+        std::vector<BodyPair> pairs;
+
+        for (std::size_t i = 0; i < this->bodies.size(); i++) {
+            for (std::size_t j = i + 1; j < this->bodies.size(); j++) {
+                const Body& first = this->bodies[i];
+                const Body& second = this->bodies[j];
+
+                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) continue;
+                if (overlaps(first.aabb(), second.aabb())) pairs.emplace_back(first, second);
+            }
+        }
+        return pairs;
     }
 }
