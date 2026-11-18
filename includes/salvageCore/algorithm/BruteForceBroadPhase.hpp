@@ -9,6 +9,7 @@
 namespace salvage::core {
     /**
      * @brief Test each unordered pair of bodies for inclusive AABB overlap.
+     * Emits pairs in ascending input-index order, with the earlier body first.
      * Each query reads the supplied body bounds directly in O(n²) time.
      * The strategy is stateless, so initialize() and update() require no work.
      */

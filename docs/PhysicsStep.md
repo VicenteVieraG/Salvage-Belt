@@ -10,21 +10,21 @@ and static bodies. No additional third-party dependency is required.
 1. Integrates each dynamic body with Velocity Verlet and constant acceleration
    `gravity + accumulatedForce * inverseMass`. Position changes refresh AABBs.
 2. Clears accumulated external forces.
-3. Scans AABB candidates and confirms actual shape contacts with `detectContact`.
+3. Updates the world's selected broad phase with the integrated bounds, skips
+   static/static pairs, and confirms shape contacts with `detectContact`.
 4. Resolves velocities with accumulated sequential normal and friction impulses.
-5. Repeats mass-weighted position correction, querying candidates again each pass
-   and refreshing individual contact geometry after preceding corrections.
+5. Uses those contacts for the first mass-weighted position correction pass.
+   Each pair's geometry is refreshed before correction. If a pass moves bodies,
+   the next pass updates the broad phase and queries contacts again.
 
 Zero duration is a no-op, including preserving pending forces. Invalid durations
 throw before changing any state. Bodies with zero inverse mass remain unchanged;
 their stored velocity is ignored by contact response. All calculations require
 finite inputs and intermediate arithmetic within floating-point range.
 
-The step uses its own quadratic AABB scan. The standalone brute-force strategy
-is available through the [broad-phase interface](BroadPhaseInterface.md).
-`findPotentialCollisions()` still returns independent body snapshots.
-`findContacts()` returns confirmed contact values containing IDs, without mutation.
-Responses operate on the world's actual bodies.
+The step and both world queries use the same [broad-phase strategy](BroadPhaseInterface.md).
+`findPotentialCollisions()` returns independent body snapshots. `findContacts()`
+returns confirmed contacts containing IDs. The solver acts on the world's bodies.
 
 ## Contacts and materials
 
@@ -71,8 +71,7 @@ const auto contacts = world.findContacts();
 
 ## Remaining scope
 
-- The k-d tree implementation and strategy selection in `World` remain separate
-  algorithm work. Narrow phase and response can be reused once candidates use IDs.
+- `Algorithm::KDTree` currently produces no collision candidates.
 - Detection is discrete: a fast object can cross an obstacle entirely within one
   step. Use a small fixed time step appropriate to speed and collider size.
   Continuous detection requires swept candidates and time-of-impact integration.

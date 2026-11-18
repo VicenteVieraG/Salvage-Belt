@@ -19,7 +19,6 @@ namespace salvage::core {
      * @param algorithm Strategy to construct.
      * @return A non-null strategy. Call initialize() before using it.
      * @throws std::invalid_argument If algorithm is not a supported enumerator.
-     * @note Does not select or replace the broad phase used by World.
      */
     std::unique_ptr<IBroadPhase> makeBroadPhase(Algorithm algorithm);
 }

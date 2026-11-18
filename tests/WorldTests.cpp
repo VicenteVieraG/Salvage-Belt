@@ -413,6 +413,99 @@ TEST_CASE("Zero-gravity stepping moves dynamic bodies and refreshes bounds", "[c
     requireBounds(*world.getBody(id), {2.5, 0.0, 4.0}, {3.5, 2.0, 8.0});
 }
 
+TEST_CASE("A generated body rebounds from a wall on the step it reaches it", "[core][world][step][generation]") {
+    World world;
+    const auto wall = world.createBody(Body{{4.0, 0.0, 0.0}, {}, 0.0, BoxCollider{{1.0, 2.0, 2.0}}});
+    // Leave a gap between IDs so a candidate ID cannot double as a storage index.
+    const auto removed = world.createBody();
+    REQUIRE(world.removeBody(removed));
+    world.generateRandomBodies(1, 42, {
+        .spawnBounds = {{-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0}},
+        .extent = {1.0, 1.0},
+        .velocity = {0.0, 0.0},
+        .inverseMass = {1.0, 1.0},
+        .restitution = {1.0, 1.0}
+    });
+    const auto moving = world.getBodies().back().getId();
+    REQUIRE(world.findPotentialCollisions().empty());
+    REQUIRE(world.addBodyForce(moving, {4.0, 0.0, 0.0}));
+
+    world.step(1.0);
+    requirePairIds(world.findPotentialCollisions(), {{wall, moving}});
+    requireVec3(world.getBody(moving)->getPosition(), {2.0, 0.0, 0.0});
+    requireVec3(world.getBody(moving)->getVelocity(), {-4.0, 0.0, 0.0});
+
+    world.step(0.5);
+    requireVec3(world.getBody(moving)->getPosition(), {});
+    REQUIRE(world.findPotentialCollisions().empty());
+}
+
+TEST_CASE("Position correction discovers a new pair on the next pass", "[core][world][step]") {
+    World world;
+    world.setSolverSettings({.positionIterations = 2, .penetrationSlop = 0.0, .positionCorrection = 1.0});
+    const auto fixed = world.createBody(Body{{}, {}, 0.0});
+    const auto middle = world.createBody(Body{{1.0, 0.0, 0.0}});
+    const auto last = world.createBody(Body{{3.5, 0.0, 0.0}});
+    requirePairIds(world.findPotentialCollisions(), {{fixed, middle}});
+
+    // Moving the middle sphere out of the fixed sphere pushes it into the last sphere.
+    world.step(0.1);
+    REQUIRE(world.getBody(middle)->getPosition().x == 1.75);
+    REQUIRE(world.getBody(last)->getPosition().x == 3.75);
+}
+
+TEST_CASE("World steps and queries use the selected broad phase", "[core][world][step][broadphase]") {
+    for (const auto algorithm : {Algorithm::BruteForce, Algorithm::KDTree}) {
+        CAPTURE(algorithm);
+        World world{algorithm, {-2.0, 0.0, 0.0}};
+        world.setSolverSettings({.penetrationSlop = 0.0, .positionCorrection = 1.0});
+        world.createBody(Body{{}, {}, 0.0});
+        const auto moving = world.createBody(Body{{2.0, 0.0, 0.0}, {}, 1.0, SphereCollider{}, Material{1.0, 0.0}});
+
+        auto strategy = makeBroadPhase(algorithm);
+        strategy->initialize(world.getBodies());
+        std::vector<CollisionPair> candidates;
+        strategy->findCandidates(world.getBodies(), candidates);
+        REQUIRE(world.findPotentialCollisions().size() == candidates.size());
+        REQUIRE(world.findContacts().size() == candidates.size());
+
+        world.step(1.0);
+        const bool rebounds = !candidates.empty();
+        REQUIRE(world.getBody(moving)->getVelocity().x == (rebounds ? 2.0 : -2.0));
+        REQUIRE(world.getBody(moving)->getPosition().x == (rebounds ? 2.0 : 1.0));
+    }
+    REQUIRE_THROWS_AS(World(static_cast<Algorithm>(-1)), std::invalid_argument);
+}
+
+TEST_CASE("Copied worlds keep their strategy and simulate independently", "[core][world][broadphase]") {
+    World original{Algorithm::KDTree};
+    const auto fixed = original.createBody(Body{{}, {}, 0.0});
+    const auto moving = original.createBody(Body{{2.0, 0.0, 0.0}});
+    REQUIRE(original.addBodyForce(moving, {-2.0, 0.0, 0.0}));
+    World copy = original;
+    World assigned;
+    assigned = original;
+
+    const auto expected = original.findContacts().size();
+    REQUIRE(copy.findContacts().size() == expected);
+    REQUIRE(assigned.findContacts().size() == expected);
+    REQUIRE(copy.removeBody(fixed));
+    copy.step(1.0);
+    REQUIRE(copy.getBody(moving)->getVelocity().x == -2.0);
+    REQUIRE(original.getBody(moving)->getVelocity().x == 0.0);
+
+    World moved = std::move(assigned);
+    moved.step(1.0);
+    original.step(1.0);
+    requireVec3(moved.getBody(moving)->getPosition(), original.getBody(moving)->getPosition());
+    requireVec3(moved.getBody(moving)->getVelocity(), original.getBody(moving)->getVelocity());
+
+    assigned.clear();
+    const auto fresh = assigned.createBody(Body{{}, {1.0, 0.0, 0.0}});
+    assigned.step(0.5);
+    REQUIRE(assigned.getBody(fresh)->getPosition().x == 0.5);
+}
+
 /**
  * @brief Gravity uses Velocity Verlet independently of dynamic mass.
  * @test Gravity uses Velocity Verlet independently of dynamic mass.

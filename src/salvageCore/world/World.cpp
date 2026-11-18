@@ -79,6 +79,38 @@ namespace salvage::core {
                 throw std::invalid_argument("Random body placement requires at least one attempt per body");
             }
         }
+
+        void forEachPotentialCollision(const World& world, const IBroadPhase& broadPhase, auto visit) {
+            std::vector<CollisionPair> candidates;
+            broadPhase.findCandidates(world.getBodies(), candidates);
+            // Sequential impulses and snapshot queries both use creation order.
+            for (auto& [first, second] : candidates) {
+                if (second < first) {
+                    std::swap(first, second);
+                }
+            }
+            if (!std::ranges::is_sorted(candidates)) {
+                std::ranges::sort(candidates);
+            }
+            for (const auto& [firstId, secondId] : candidates) {
+                const Body& first = *world.getBody(firstId);
+                const Body& second = *world.getBody(secondId);
+                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) {
+                    continue;
+                }
+                visit(first, second);
+            }
+        }
+
+        std::vector<Contact> collectContacts(const World& world, const IBroadPhase& broadPhase) {
+            std::vector<Contact> contacts;
+            forEachPotentialCollision(world, broadPhase, [&](const Body& first, const Body& second) {
+                if (const auto contact = detectContact(first, second)) {
+                    contacts.push_back(*contact);
+                }
+            });
+            return contacts;
+        }
     }
 
     RandomBodySettings RandomBodySettings::forBodyCount(std::size_t count, double spacing) {
@@ -89,8 +121,39 @@ namespace salvage::core {
         return {.spawnBounds = {{-halfSize, -halfSize, -halfSize}, {halfSize, halfSize, halfSize}}};
     }
 
-    World::World(const Vec3& gravity) {
+    World::World(const Vec3& gravity) : World(Algorithm::BruteForce, gravity) {}
+
+    World::World(Algorithm algorithm, const Vec3& gravity)
+        : algorithm(algorithm), broadPhase(makeInitializedBroadPhase()) {
         this->setGravity(gravity);
+    }
+
+    World::World(const World& other)
+        : bodies(other.bodies), nextBodyId(other.nextBodyId), gravity(other.gravity),
+          solverSettings(other.solverSettings), forces(other.forces), algorithm(other.algorithm),
+          broadPhase(makeInitializedBroadPhase()) {}
+
+    World& World::operator=(const World& other) {
+        if (this != &other) {
+            *this = World(other);
+        }
+        return *this;
+    }
+
+    std::unique_ptr<IBroadPhase> World::makeInitializedBroadPhase() const {
+        auto strategy = makeBroadPhase(this->algorithm);
+        strategy->initialize(this->bodies);
+        return strategy;
+    }
+
+    IBroadPhase& World::updateBroadPhase() {
+        if (this->broadPhase) {
+            this->broadPhase->update(this->bodies);
+        } else {
+            // A moved-from world can be populated and stepped again.
+            this->broadPhase = this->makeInitializedBroadPhase();
+        }
+        return *this->broadPhase;
     }
 
     BodyId World::createBody(const Body& body) {
@@ -324,9 +387,15 @@ namespace salvage::core {
 
         this->forces.clear();
 
-        solveContactVelocities(this->bodies, this->findContacts(), this->solverSettings);
+        IBroadPhase& strategy = this->updateBroadPhase();
+        auto contacts = collectContacts(*this, strategy);
+        solveContactVelocities(this->bodies, contacts, this->solverSettings);
         for (std::size_t iteration = 0; iteration < this->solverSettings.positionIterations; ++iteration) {
-            const auto contacts = this->findContacts();
+            // Velocity impulses preserve bounds. Only a previous correction requires a new scan.
+            if (iteration > 0) {
+                strategy.update(this->bodies);
+                contacts = collectContacts(*this, strategy);
+            }
             bool corrected = false;
             for (const Contact& contact : contacts) {
                 Body* first = this->findBody(contact.first);
@@ -343,32 +412,18 @@ namespace salvage::core {
     }
 
     std::vector<Contact> World::findContacts() const {
-        std::vector<Contact> contacts;
-        for (std::size_t i = 0; i < this->bodies.size(); ++i) {
-            for (std::size_t j = i + 1; j < this->bodies.size(); ++j) {
-                const Body& first = this->bodies[i];
-                const Body& second = this->bodies[j];
-                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) continue;
-                if (!overlaps(first.aabb(), second.aabb())) continue;
-                if (const auto contact = detectContact(first, second)) contacts.push_back(*contact);
-            }
-        }
-        return contacts;
+        const auto strategy = this->makeInitializedBroadPhase();
+        return collectContacts(*this, *strategy);
     }
 
     std::vector<BodyPair> World::findPotentialCollisions() const {
-        // Preserve the existing query until the strategy interface is integrated.
+        const auto strategy = this->makeInitializedBroadPhase();
         std::vector<BodyPair> pairs;
-
-        for (std::size_t i = 0; i < this->bodies.size(); i++) {
-            for (std::size_t j = i + 1; j < this->bodies.size(); j++) {
-                const Body& first = this->bodies[i];
-                const Body& second = this->bodies[j];
-
-                if (first.getInverseMass() == 0.0 && second.getInverseMass() == 0.0) continue;
-                if (overlaps(first.aabb(), second.aabb())) pairs.emplace_back(first, second);
+        forEachPotentialCollision(*this, *strategy, [&](const Body& first, const Body& second) {
+            if (overlaps(first.aabb(), second.aabb())) {
+                pairs.emplace_back(first, second);
             }
-        }
+        });
         return pairs;
     }
 }

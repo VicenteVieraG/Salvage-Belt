@@ -56,10 +56,20 @@ int main() {
 }
 ```
 
-## Deferred integration
+## Simulation use
 
-`World` does not yet own an `IBroadPhase` or accept an `Algorithm`. A later
-iteration can connect strategy updates and candidate generation to the shared
-simulation flow. Algorithm selection will happen when creating a new world,
-consistent with restarting simulations for comparisons. Integration, narrow-phase
-checks, and collision response stay outside the strategy interface.
+Choose the algorithm when constructing a world. `World{}` and `World{gravity}`
+default to brute force. The k-d tree is currently a placeholder. Selecting it
+advances bodies with forces and gravity but produces no collision response.
+
+```cpp
+World world{Algorithm::BruteForce, {0.0, -9.81, 0.0}};
+world.generateRandomBodies(100, 42);
+world.step(1.0 / 120.0);
+```
+
+Each world owns a strategy and updates it after integration and between position
+correction passes. The world puts candidate pairs in body creation order so
+the solver processes contacts consistently across algorithms. Read-only world
+queries build an independent instance of the selected strategy from the current
+bodies. Copying a world preserves its selection and gives the copy its own index.

@@ -6,11 +6,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <utility>
 #include <unordered_map>
 #include <vector>
 #include "Body.hpp"
+#include "algorithm/BroadPhaseFactory.hpp"
 #include "physics/ContactSolver.hpp"
 
 namespace salvage::core {
@@ -53,6 +55,13 @@ namespace salvage::core {
             Vec3 gravity{}; ///< Uniform acceleration applied to dynamic bodies.
             SolverSettings solverSettings{}; ///< Iteration counts and contact tolerances.
             std::unordered_map<BodyId, Vec3> forces{}; ///< Accumulated external forces for the next positive step.
+            Algorithm algorithm; ///< Broad-phase selection for simulation and collision queries.
+            std::unique_ptr<IBroadPhase> broadPhase; ///< Strategy reused across simulation steps.
+
+            /// @brief Build an independent index of the current bodies for a read-only query or a world copy.
+            std::unique_ptr<IBroadPhase> makeInitializedBroadPhase() const;
+            /// @brief Synchronize the simulation strategy with current bodies before querying it.
+            IBroadPhase& updateBroadPhase();
 
             /**
              * @brief Find a mutable body by its world-local ID.
@@ -62,11 +71,28 @@ namespace salvage::core {
             Body* findBody(BodyId id) noexcept;
         public:
             /**
-             * @brief Create an empty world with uniform acceleration.
+             * @brief Create an empty world with uniform acceleration and the brute-force broad phase.
              * @param gravity Finite acceleration vector; defaults to zero.
              * @throws std::invalid_argument If any gravity component is not finite.
              */
             explicit World(const Vec3& gravity = {});
+
+            /**
+             * @brief Choose the broad phase for this world's steps and collision queries.
+             * @param algorithm Strategy to use. KDTree currently produces no candidates.
+             * @param gravity Finite uniform acceleration, defaulting to zero.
+             * @throws std::invalid_argument If the algorithm is unknown or gravity is non-finite.
+             */
+            explicit World(Algorithm algorithm, const Vec3& gravity = {});
+
+            /// @brief Copy simulation state and build an independent broad-phase strategy.
+            World(const World& other);
+            /// @brief Replace simulation state and broad-phase selection with a copy of another world.
+            World& operator=(const World& other);
+            /// @brief Transfer simulation state and strategy ownership.
+            World(World&&) noexcept = default;
+            /// @brief Replace this world with the source's simulation state and strategy.
+            World& operator=(World&&) noexcept = default;
 
             /**
              * @brief Copy a body into this world and assign a fresh ID.
@@ -237,7 +263,7 @@ namespace salvage::core {
 
             /**
              * @brief Query confirmed contacts without changing the world.
-             * Uses the existing quadratic AABB scan, rejects shape-level false positives,
+             * Uses the selected broad phase, rejects shape-level false positives,
              * omits static/static pairs, and includes touching shapes.
              * @return Independent contact values containing world-local body IDs.
              */
@@ -249,8 +275,6 @@ namespace salvage::core {
              * Touching bounds count as overlaps. Candidates can be false positives for the
              * actual shapes; no contact resolution is performed.
              * @return Independent body copies; editing them does not change the world.
-             * @note Uses the existing quadratic pair scan until broad-phase strategies
-             * are integrated.
              */
             std::vector<BodyPair> findPotentialCollisions() const;
     };
