@@ -1,20 +1,25 @@
 /**
  * @file
- * @brief No-op brute-force strategy lifecycle.
+ * @brief Brute-force enumeration of overlapping body bounds.
  */
 #include "algorithm/BruteForceBroadPhase.hpp"
 
-namespace salvage::core {
-    void BruteForceBroadPhase::initialize(std::span<const Body>) {
-        // Placeholder: no spatial data is initialized in this iteration.
-    }
+#include <cstddef>
 
-    void BruteForceBroadPhase::update(std::span<const Body>) {
-        // Placeholder: no spatial data is updated in this iteration.
-    }
+namespace salvage::core {
+    void BruteForceBroadPhase::initialize(std::span<const Body>) {}
+
+    void BruteForceBroadPhase::update(std::span<const Body>) {}
 
     void BruteForceBroadPhase::findCandidates(
-        std::span<const Body>, std::vector<CollisionPair>&) const {
-        // Placeholder: leave caller-owned output unchanged; do not enumerate pairs.
+        std::span<const Body> bodies, std::vector<CollisionPair>& out) const {
+        for (std::size_t i = 0; i < bodies.size(); ++i) {
+            const Body& first = bodies[i];
+            for (const Body& second : bodies.subspan(i + 1)) {
+                if (overlaps(first.aabb(), second.aabb())) {
+                    out.emplace_back(first.getId(), second.getId());
+                }
+            }
+        }
     }
 }

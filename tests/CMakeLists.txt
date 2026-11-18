@@ -3,7 +3,7 @@ if(BUILD_TESTS)
 
     if(EXISTS "${CATCH2_DIR}/CMakeLists.txt")
         add_subdirectory(${CATCH2_DIR})
-        add_executable(tests main.cpp BodyTests.cpp WorldTests.cpp PhysicsTests.cpp ContactTests.cpp ContactSolverTests.cpp ForceTests.cpp)
+        add_executable(tests main.cpp BodyTests.cpp WorldTests.cpp PhysicsTests.cpp ContactTests.cpp ContactSolverTests.cpp ForceTests.cpp BruteForceBroadPhaseTests.cpp)
         target_link_libraries(tests PRIVATE salvageCore)
         target_set_warnings(tests ${ENABLE_WARNINGS_AS_ERRORS})
         target_enable_clang_tidy(tests)

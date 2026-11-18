@@ -28,8 +28,7 @@ namespace salvage::core {
      * Reacquire views after storage changes and call update() after body changes
      * before querying candidates. The bodies must remain unchanged during each call.
      *
-     * @note The supplied strategies are placeholders and generate no candidates.
-     * Their empty output must not be interpreted as proof that no bodies overlap.
+     * @note KDTreeBroadPhase is a placeholder and appends no candidates.
      */
     class IBroadPhase {
         public:
@@ -64,7 +63,6 @@ namespace salvage::core {
              * @param out Destination to append to; existing entries are preserved.
              * Clear it before the call when a fresh result is required.
              * @pre initialize() has been called; internal state matches bodies.
-             * @note Placeholder implementations append nothing.
              */
             virtual void findCandidates(std::span<const Body> bodies, std::vector<CollisionPair>& out) const = 0;
     };

@@ -1,14 +1,8 @@
-# Broad-phase interface prototype
+# Broad-phase strategies
 
-**Current physics:** The shared narrow phase and contact solver are now implemented
-in `World::step()` using the existing AABB scan. See [PhysicsStep.md](PhysicsStep.md).
-The strategies themselves remain no-op placeholders; the prototype notes below
-describe that interface boundary.
-
-This iteration introduces the strategy boundary for review. The old standalone
-brute-force module has been removed; its existing pair scan now lives inside
-`World::findPotentialCollisions()` until strategy integration. The new strategies
-contain no collision algorithm and do not change simulation behavior.
+`BruteForceBroadPhase` compares each unordered pair of bodies once and appends
+the IDs of pairs whose AABBs overlap. Touching bounds and static/static pairs
+are included. The scan takes O(n²) time and O(1) space beyond the output.
 
 ## Structure
 
@@ -19,7 +13,7 @@ contain no collision algorithm and do not change simulation behavior.
   body copies.
 - `IBroadPhase` defines `initialize`, `update`, and `findCandidates`, with a virtual
   destructor for ownership through `std::unique_ptr<IBroadPhase>`.
-- `BruteForceBroadPhase` and `KDTreeBroadPhase` are concrete, no-op placeholders.
+- `KDTreeBroadPhase` is a placeholder and appends no candidates.
 - `Algorithm` and `makeBroadPhase()` select and create a strategy. The factory is
   the only selection switch; consumers call the virtual interface afterward.
 
@@ -34,13 +28,13 @@ strategy call. Passing a view does not create a snapshot or extend body lifetime
 
 Queries receive a body view matching the state at the latest initialization or update and
 append ID pairs to caller-owned output. The caller clears output when it wants a
-fresh result. Pair ordering and orientation are unspecified. The completed
-algorithms will include every overlapping AABB pair, may include false positives,
-and will emit each unordered pair at most once per query. Static/static filtering
+fresh result. Pair ordering and orientation are unspecified. Implementations
+must include every overlapping AABB pair, may include false positives,
+and must emit each unordered pair at most once per query. Static/static filtering
 and narrow-phase confirmation remain the caller's responsibility in this contract.
 
-All three operations currently do nothing in both strategies, including leaving
-existing output entries untouched. Empty output is a placeholder result.
+The brute-force strategy reads the current bounds from the query's body view.
+Its initialization and update operations require no work.
 
 ## Standalone use
 
@@ -54,14 +48,11 @@ int main() {
     world.createBody();
     world.createBody(Body{{1.0, 0.0, 0.0}});
 
-    auto strategy = makeBroadPhase(Algorithm::KDTree);
+    auto strategy = makeBroadPhase(Algorithm::BruteForce);
     strategy->initialize(world.getBodies());
 
-    world.step(0.016);
-    strategy->update(world.getBodies());
-
     std::vector<CollisionPair> candidates;
-    strategy->findCandidates(world.getBodies(), candidates); // Still empty: placeholder.
+    strategy->findCandidates(world.getBodies(), candidates); // One overlapping pair.
 }
 ```
 

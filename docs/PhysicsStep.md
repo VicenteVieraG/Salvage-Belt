@@ -20,8 +20,8 @@ throw before changing any state. Bodies with zero inverse mass remain unchanged;
 their stored velocity is ignored by contact response. All calculations require
 finite inputs and intermediate arithmetic within floating-point range.
 
-The broad-phase strategies remain interface placeholders. The step uses the
-existing quadratic AABB scan directly and does not depend on those strategies.
+The step uses its own quadratic AABB scan. The standalone brute-force strategy
+is available through the [broad-phase interface](BroadPhaseInterface.md).
 `findPotentialCollisions()` still returns independent body snapshots.
 `findContacts()` returns confirmed contact values containing IDs, without mutation.
 Responses operate on the world's actual bodies.
@@ -71,7 +71,7 @@ const auto contacts = world.findContacts();
 
 ## Remaining scope
 
-- Broad-phase implementations and strategy selection in `World` remain separate
+- The k-d tree implementation and strategy selection in `World` remain separate
   algorithm work. Narrow phase and response can be reused once candidates use IDs.
 - Detection is discrete: a fast object can cross an obstacle entirely within one
   step. Use a small fixed time step appropriate to speed and collider size.

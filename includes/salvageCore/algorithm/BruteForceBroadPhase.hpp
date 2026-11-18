@@ -1,6 +1,6 @@
 /**
  * @file
- * @brief Brute-force strategy placeholder for interface review.
+ * @brief Brute-force broad-phase collision detection.
  */
 #pragma once
 
@@ -8,9 +8,9 @@
 
 namespace salvage::core {
     /**
-     * @brief Placeholder for a future brute-force broad-phase strategy.
-     * Every operation is a no-op. World's existing collision query remains
-     * separate until the strategy interface is integrated.
+     * @brief Test each unordered pair of bodies for inclusive AABB overlap.
+     * Each query reads the supplied body bounds directly in O(n²) time.
+     * The strategy is stateless, so initialize() and update() require no work.
      */
     class BruteForceBroadPhase final : public IBroadPhase {
         public:

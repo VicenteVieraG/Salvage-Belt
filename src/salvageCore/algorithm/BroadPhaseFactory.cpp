@@ -1,6 +1,6 @@
 /**
  * @file
- * @brief Construction of selectable broad-phase strategy placeholders.
+ * @brief Construction of selectable broad-phase strategies.
  */
 #include "algorithm/BroadPhaseFactory.hpp"
 #include "algorithm/BruteForceBroadPhase.hpp"

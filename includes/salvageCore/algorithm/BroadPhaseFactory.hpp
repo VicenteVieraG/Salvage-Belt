@@ -1,6 +1,6 @@
 /**
  * @file
- * @brief Selection and construction of broad-phase strategy placeholders.
+ * @brief Selection and construction of broad-phase strategies.
  */
 #pragma once
 
@@ -8,16 +8,16 @@
 #include "IBroadPhase.hpp"
 
 namespace salvage::core {
-    /// @brief Broad-phase strategies available for interface review.
+    /// @brief Broad-phase strategies recognized by the factory.
     enum class Algorithm {
-        BruteForce, ///< Select BruteForceBroadPhase; currently a no-op placeholder.
+        BruteForce, ///< Select the pairwise AABB scan.
         KDTree ///< Select KDTreeBroadPhase; currently a no-op placeholder.
     };
 
     /**
      * @brief Create an independently owned strategy for the selected algorithm.
      * @param algorithm Strategy to construct.
-     * @return A non-null placeholder strategy; call initialize() before using it.
+     * @return A non-null strategy. Call initialize() before using it.
      * @throws std::invalid_argument If algorithm is not a supported enumerator.
      * @note Does not select or replace the broad phase used by World.
      */
