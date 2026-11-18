@@ -455,7 +455,7 @@ TEST_CASE("Position correction discovers a new pair on the next pass", "[core][w
 }
 
 TEST_CASE("World steps and queries use the selected broad phase", "[core][world][step][broadphase]") {
-    for (const auto algorithm : {Algorithm::BruteForce, Algorithm::KDTree}) {
+    for (const auto algorithm : {Algorithm::BruteForce, Algorithm::KDTree, Algorithm::SweepAndPrune}) {
         CAPTURE(algorithm);
         World world{algorithm, {-2.0, 0.0, 0.0}};
         world.setSolverSettings({.penetrationSlop = 0.0, .positionCorrection = 1.0});

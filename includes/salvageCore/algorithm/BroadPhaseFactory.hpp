@@ -11,7 +11,8 @@ namespace salvage::core {
     /// @brief Broad-phase strategies recognized by the factory.
     enum class Algorithm {
         BruteForce, ///< Select the pairwise AABB scan.
-        KDTree ///< Select the k-d tree AABB index.
+        KDTree, ///< Select the k-d tree AABB index.
+        SweepAndPrune ///< Select the single-axis AABB sweep.
     };
 
     /**

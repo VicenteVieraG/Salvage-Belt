@@ -13,4 +13,5 @@
 #include "algorithm/BroadPhaseFactory.hpp"
 #include "algorithm/BruteForceBroadPhase.hpp"
 #include "algorithm/KDTreeBroadPhase.hpp"
+#include "algorithm/SweepAndPruneBroadPhase.hpp"
 #include "world/World.hpp"

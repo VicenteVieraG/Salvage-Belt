@@ -1,12 +1,15 @@
-/** @file @brief k-d tree candidate generation and index rebuilds. */
+/** @file @brief Compare indexed broad-phase strategies with the pairwise scan. */
 #include <algorithm>
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include "algorithm/BruteForceBroadPhase.hpp"
 #include "algorithm/KDTreeBroadPhase.hpp"
+#include "algorithm/SweepAndPruneBroadPhase.hpp"
 
 using namespace salvage::core;
 
-TEST_CASE("K-d tree matches brute force across split planes and rebuilds", "[core][broadphase]") {
+TEMPLATE_TEST_CASE("Indexed broad phase matches brute force across updates", "[core][broadphase]",
+    KDTreeBroadPhase, SweepAndPruneBroadPhase) {
     std::vector<Body> bodies;
     // Neighbors touch at faces, edges, and corners. Centers tie along every split axis.
     BodyId id = 1000;
@@ -22,8 +25,8 @@ TEST_CASE("K-d tree matches brute force across split planes and rebuilds", "[cor
     bodies.emplace_back(20, Vec3{}, Vec3{}, 1.0, SphereCollider{0.0});
     bodies.emplace_back(30, Vec3{}, Vec3{}, 1.0, SphereCollider{0.0});
 
-    KDTreeBroadPhase tree;
-    tree.initialize(bodies);
+    TestType strategy;
+    strategy.initialize(bodies);
     const auto checkPairs = [&] {
         BruteForceBroadPhase reference;
         reference.initialize(bodies);
@@ -32,7 +35,7 @@ TEST_CASE("K-d tree matches brute force across split planes and rebuilds", "[cor
 
         const CollisionPair prior{10, 20};
         std::vector<CollisionPair> actual{prior};
-        tree.findCandidates(bodies, actual);
+        strategy.findCandidates(bodies, actual);
         REQUIRE_FALSE(actual.empty());
         REQUIRE(actual.front() == prior);
         auto appended = std::span{actual}.subspan(1);
@@ -50,17 +53,24 @@ TEST_CASE("K-d tree matches brute force across split planes and rebuilds", "[cor
     };
     checkPairs();
 
+    // Change the sweep order without changing the number of bodies.
+    bodies.back().setPosition({-4.0, -4.0, -4.0});
+    bodies.front().setCollider(BoxCollider{{12.0, 1.0, 1.0}});
+    std::ranges::reverse(bodies);
+    strategy.update(bodies);
+    checkPairs();
+
     bodies.erase(bodies.begin(), bodies.begin() + 60);
     bodies.front().setCollider(BoxCollider{{10.0, 0.0, 2.0}});
     bodies.back().setPosition({4.0, -4.0, 4.0});
     bodies.emplace_back(40, Vec3{5.0, -4.0, 4.0}, Vec3{}, 1.0, SphereCollider{1.0});
-    tree.update(bodies);
+    strategy.update(bodies);
     checkPairs();
 
     bodies.resize(1);
-    tree.initialize(bodies);
+    strategy.initialize(bodies);
     checkPairs();
     bodies.clear();
-    tree.update(bodies);
+    strategy.update(bodies);
     checkPairs();
 }

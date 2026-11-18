@@ -11,6 +11,13 @@ its bounds are disjoint from the query body. Initialization and updates rebuild
 the index in O(n log n) time on average using O(n) storage. Reporting all pairs
 can still take O(n²) time when many bounds overlap.
 
+`SweepAndPruneBroadPhase` sorts body indices by the minimum x coordinate of
+each AABB. For each body it scans forward until the next minimum exceeds its
+maximum, testing the remaining axes for overlap. Touching bounds are included.
+Updates take O(n) time when the sweep order still holds and O(n log n) when
+sorting is needed. The index uses O(n) space. A query takes O(n + k) time,
+where k is the number of pairs whose x intervals overlap.
+
 ## Structure
 
 - Strategies receive `std::span<const Body>`, a read-only view without body copies.
@@ -65,8 +72,8 @@ int main() {
 ## Simulation use
 
 Choose the algorithm when constructing a world. `World{}` and `World{gravity}`
-default to brute force. Pass `Algorithm::KDTree` to use the k-d tree for collision
-queries and simulation steps.
+default to brute force. Pass `Algorithm::KDTree` or `Algorithm::SweepAndPrune`
+to use that strategy for collision queries and simulation steps.
 
 ```cpp
 World world{Algorithm::KDTree, {0.0, -9.81, 0.0}};

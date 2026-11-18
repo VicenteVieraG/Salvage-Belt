@@ -6,6 +6,7 @@ add_library(salvageCore STATIC
     algorithm/BroadPhaseFactory.cpp
     algorithm/BruteForceBroadPhase.cpp
     algorithm/KDTreeBroadPhase.cpp
+    algorithm/SweepAndPruneBroadPhase.cpp
 )
 target_set_warnings(salvageCore OFF)
 target_enable_clang_tidy(salvageCore)
