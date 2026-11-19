@@ -1,5 +1,33 @@
-# CMake Template Project
-A ready-to-use C/C++ CMake project template. This template includes a professional, scalable and intuitive folder structure with all the required features to create end-to-end applications. The template contains a main.cpp file ready to be used as a starting point for your project.
+# Salvage Belt
+
+A C++ physics sandbox for spheres and axis-aligned boxes, with a terminal interface and a 3D visualizer.
+
+## Run Salvage Belt
+
+```sh
+git submodule update --init --recursive
+cmake -S . -B build
+cmake --build build
+./build/bin/salvageAnalytic
+./build/bin/salvageBelt
+```
+
+Run `salvageAnalytic` in an interactive terminal or `salvageBelt` on a graphical desktop.
+Each executable opens its own paused demo with spheres, boxes, and a static floor.
+To build either one individually, use `cmake --build build --target salvageAnalytic`
+or `cmake --build build --target salvageBelt`.
+
+| Control | Action |
+| --- | --- |
+| Space | Play or pause |
+| N | Pause and advance one 1/120-second simulation step |
+| R | Reset the demo |
+| C | Show or hide current contacts |
+| `[` / `]` | Select the previous or next body |
+| Esc | Quit either mode (Q also works in the terminal) |
+
+In the visualizer, left-click a body to select it, right-drag to orbit, and scroll to zoom.
+Amber markers show contact points and normals for the current geometry after stepping.
 
 ## Usage
 Create a new project from GitHub and use this repository as a template. You can also copy or clone the code into your computer, delete the .git file and create a new repository with the template. In either case, if you want to enable tests with the Cath2 default template integration, you will need to include it as a git submodule from the .gitmodules file:
@@ -8,7 +36,7 @@ git submodule update --init --recursive
 ```
 
 ## Features
-- Application entry point [main file](./app/main.cpp) working out of the box.
+- Separate [terminal](./app/salvageAnalytic/main.cpp) and [raylib](./app/salvageBelt/main.cpp) entry points.
 - Catch2 tests integrated with CTest ready to start writing tests in file [tests/main.cpp](./tests/main.cpp).
 - Doxigen documentation building with CMake CI pipeline.
 - Clang-tidy linting at build time.
@@ -24,7 +52,9 @@ This template features a professional folder structure. It is solid enough to ha
 Root Folder/
 ├── app/
 │   ├── CMakeLists.txt
-│   └── main.cpp
+│   ├── common/
+│   ├── salvageAnalytic/
+│   └── salvageBelt/
 ├── cmake/
 │   ├── AddGitSubmodule.cmake
 │   ├── ClangTidy.cmake
@@ -40,9 +70,15 @@ Root Folder/
 ├── external/
 │   └── CMakeLists.txt
 ├── includes/
-│   └── CMakeLists.txt
+│   ├── CMakeLists.txt
+│   ├── salvageAnalytic/
+│   ├── salvageBelt/
+│   └── salvageCore/
 ├── src/
-│   └── CMakeLists.txt
+│   ├── CMakeLists.txt
+│   ├── salvageAnalytic/
+│   ├── salvageBelt/
+│   └── salvageCore/
 ├── tests/
 │   ├── catch2 (git submodule)/
 │   │   └── ...
