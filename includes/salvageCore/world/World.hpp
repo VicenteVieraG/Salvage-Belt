@@ -55,7 +55,7 @@ namespace salvage::core {
             Vec3 gravity{}; ///< Uniform acceleration applied to dynamic bodies.
             SolverSettings solverSettings{}; ///< Iteration counts and contact tolerances.
             std::unordered_map<BodyId, Vec3> forces{}; ///< Accumulated external forces for the next positive step.
-            Algorithm algorithm; ///< Broad-phase selection for simulation and collision queries.
+            BroadPhaseOptions broadPhaseOptions; ///< Broad-phase selection for simulation and collision queries.
             std::unique_ptr<IBroadPhase> broadPhase; ///< Strategy reused across simulation steps.
 
             /// @brief Build an independent index of the current bodies for a read-only query or a world copy.
@@ -84,6 +84,9 @@ namespace salvage::core {
              * @throws std::invalid_argument If the algorithm is unknown or gravity is non-finite.
              */
             explicit World(Algorithm algorithm, const Vec3& gravity = {});
+
+            /// @brief Choose an algorithm and execution policy for steps and read-only queries.
+            explicit World(BroadPhaseOptions options, const Vec3& gravity = {});
 
             /// @brief Copy simulation state and build an independent broad-phase strategy.
             World(const World& other);

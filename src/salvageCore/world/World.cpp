@@ -124,13 +124,16 @@ namespace salvage::core {
     World::World(const Vec3& gravity) : World(Algorithm::BruteForce, gravity) {}
 
     World::World(Algorithm algorithm, const Vec3& gravity)
-        : algorithm(algorithm), broadPhase(makeInitializedBroadPhase()) {
+        : World(BroadPhaseOptions{.algorithm = algorithm}, gravity) {}
+
+    World::World(BroadPhaseOptions options, const Vec3& gravity)
+        : broadPhaseOptions(options), broadPhase(makeInitializedBroadPhase()) {
         this->setGravity(gravity);
     }
 
     World::World(const World& other)
         : bodies(other.bodies), nextBodyId(other.nextBodyId), gravity(other.gravity),
-          solverSettings(other.solverSettings), forces(other.forces), algorithm(other.algorithm),
+          solverSettings(other.solverSettings), forces(other.forces), broadPhaseOptions(other.broadPhaseOptions),
           broadPhase(makeInitializedBroadPhase()) {}
 
     World& World::operator=(const World& other) {
@@ -141,7 +144,7 @@ namespace salvage::core {
     }
 
     std::unique_ptr<IBroadPhase> World::makeInitializedBroadPhase() const {
-        auto strategy = makeBroadPhase(this->algorithm);
+        auto strategy = makeBroadPhase(this->broadPhaseOptions);
         strategy->initialize(this->bodies);
         return strategy;
     }

@@ -2,7 +2,7 @@
 
 `BruteForceBroadPhase` compares each unordered pair of bodies once and appends
 the IDs of pairs whose AABBs overlap. Touching bounds and static/static pairs
-are included. The scan takes O(n²) time and O(1) space beyond the output.
+are included. The sequential scan takes O(n²) time and O(1) space beyond the output.
 
 `KDTreeBroadPhase` returns the same overlapping pairs. It partitions AABB
 centers at the median, cycling through the x, y, and z axes. Each subtree stores
@@ -86,3 +86,26 @@ correction passes. The world puts candidate pairs in body creation order so
 the solver processes contacts consistently across algorithms. Read-only world
 queries build an independent instance of the selected strategy from the current
 bodies. Copying a world preserves its selection and gives the copy its own index.
+
+## Parallel brute force
+
+Select the execution mode independently of the algorithm. The same options
+work with `makeBroadPhase(options)` for a standalone strategy.
+
+```cpp
+BroadPhaseOptions options{.algorithm = Algorithm::BruteForce,
+                          .execution = ExecutionMode::Parallel,
+                          .workerCount = 4};
+World world{options, {0.0, -9.81, 0.0}};
+```
+
+The build requires C++ OpenMP support. Existing world constructors select
+sequential execution. Parallel mode currently supports brute force. Requesting
+it for another algorithm throws `std::invalid_argument`. The worker count is
+an upper bound within the OpenMP runtime limit. Zero uses the runtime default.
+
+Each scan row compares one body with all later bodies in the collection.
+OpenMP schedules blocks of rows among workers. Each block collects its own
+pairs, and the caller appends the completed blocks in input order. A single
+block or a worker limit of one runs directly on the calling thread. Integration
+and contact resolution execute sequentially.

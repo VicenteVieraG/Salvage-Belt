@@ -55,3 +55,35 @@ TEST_CASE("Brute force queries the current body collection after updates", "[cor
     strategy->findCandidates(bodies, candidates);
     REQUIRE(candidates.empty());
 }
+
+TEST_CASE("Parallel brute force appends the sequential pairs across scan blocks", "[core][broadphase][parallel]") {
+    std::vector<Body> bodies;
+    for (BodyId id = 100; id > 0; --id) {
+        // Interleaved clusters overlap across block boundaries, with ties and touching bounds.
+        const Vec3 position{2.0 * (id % 7), 0.0, 0.0};
+        bodies.emplace_back(id, position, Vec3{}, 0.0, SphereCollider{1.0});
+    }
+
+    auto reference = makeBroadPhase(Algorithm::BruteForce);
+    reference->initialize(bodies);
+    for (std::size_t workers : {0, 1, 2, 4, 128}) {
+        CAPTURE(workers);
+        auto parallel = makeBroadPhase({.execution = ExecutionMode::Parallel, .workerCount = workers});
+        parallel->initialize(bodies);
+        std::vector<CollisionPair> expected{{200, 300}};
+        std::vector<CollisionPair> actual = expected;
+        reference->findCandidates(bodies, expected);
+        parallel->findCandidates(bodies, actual);
+        REQUIRE(actual == expected);
+
+        parallel->update({});
+        parallel->findCandidates({}, actual);
+        REQUIRE(actual == expected);
+    }
+}
+
+TEST_CASE("Parallel execution rejects unimplemented strategies", "[core][broadphase][parallel]") {
+    for (auto algorithm : {Algorithm::KDTree, Algorithm::SweepAndPrune}) {
+        REQUIRE_THROWS_AS(makeBroadPhase({algorithm, ExecutionMode::Parallel}), std::invalid_argument);
+    }
+}

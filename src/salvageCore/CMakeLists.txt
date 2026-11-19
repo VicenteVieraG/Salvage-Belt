@@ -8,6 +8,8 @@ add_library(salvageCore STATIC
     algorithm/KDTreeBroadPhase.cpp
     algorithm/SweepAndPruneBroadPhase.cpp
 )
+find_package(OpenMP REQUIRED COMPONENTS CXX)
+target_link_libraries(salvageCore PRIVATE OpenMP::OpenMP_CXX)
 target_set_warnings(salvageCore OFF)
 target_enable_clang_tidy(salvageCore)
 target_enable_sanitizers(salvageCore)

@@ -696,3 +696,29 @@ TEST_CASE("Potential collision pairs own independent body snapshots", "[core][wo
     requireVec3(std::get<BoxCollider>(pairs[0].second.getCollider()).halfExtents, {1.0, 2.0, 3.0});
     requireBounds(pairs[0].second, {1.0, 0.0, 0.0}, {3.0, 4.0, 6.0});
 }
+
+TEST_CASE("Parallel world queries and steps match sequential contact resolution", "[core][world][parallel]") {
+    World sequential;
+    World parallel{BroadPhaseOptions{.execution = ExecutionMode::Parallel, .workerCount = 3}};
+    for (World* world : {&sequential, &parallel}) {
+        world->createBody(Body{{}, {}, 0.0});
+        for (int i = 1; i < 80; ++i) world->createBody(Body{{10.0 * i, 0.0, 0.0}});
+        world->createBody(Body{{1.0, 0.0, 0.0}, {-1.0, 0.0, 0.0}});
+        world->createBody(Body{{3.1, 0.0, 0.0}});
+    }
+    requirePairIds(parallel.findPotentialCollisions(), {{0, 80}});
+    const auto contacts = parallel.findContacts();
+    REQUIRE(contacts.size() == 1);
+    REQUIRE(contacts[0].first == 0);
+    REQUIRE(contacts[0].second == 80);
+
+    for (int step = 0; step < 3; ++step) {
+        sequential.step(0.1);
+        parallel.step(0.1);
+        for (const Body& expected : sequential.getBodies()) {
+            const Body& actual = *parallel.getBody(expected.getId());
+            requireVec3(actual.getPosition(), expected.getPosition());
+            requireVec3(actual.getVelocity(), expected.getVelocity());
+        }
+    }
+}
