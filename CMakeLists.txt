@@ -5,12 +5,14 @@ cmake_minimum_required(VERSION 3.30)
 
 # Project name, version and languages
 #! Change the project name and version here
-project(Salvage_Belt VERSION 0.1.3 LANGUAGES C CXX)
+project(Salvage_Belt VERSION 0.1.4 LANGUAGES C CXX)
 
 # Configure build options
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+# The project uses headers. GCC module-scanning flags are incompatible with clang-tidy.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF CACHE BOOL "Scan C++ sources for module dependencies.")
 
 # Configuration to set binary output and modules directory.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)

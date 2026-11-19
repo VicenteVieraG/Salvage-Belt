@@ -56,7 +56,7 @@ TEST_CASE("Brute force queries the current body collection after updates", "[cor
     REQUIRE(candidates.empty());
 }
 
-TEST_CASE("Parallel brute force appends the sequential pairs across scan blocks", "[core][broadphase][parallel]") {
+TEST_CASE("Brute force appends the same pairs at every worker count", "[core][broadphase][parallel]") {
     std::vector<Body> bodies;
     for (BodyId id = 100; id > 0; --id) {
         // Interleaved clusters overlap across block boundaries, with ties and touching bounds.
@@ -68,22 +68,24 @@ TEST_CASE("Parallel brute force appends the sequential pairs across scan blocks"
     reference->initialize(bodies);
     for (std::size_t workers : {0, 1, 2, 4, 128}) {
         CAPTURE(workers);
-        auto parallel = makeBroadPhase({.execution = ExecutionMode::Parallel, .workerCount = workers});
-        parallel->initialize(bodies);
+        auto strategy = makeBroadPhase({.workerCount = workers});
+        strategy->initialize(bodies);
         std::vector<CollisionPair> expected{{200, 300}};
         std::vector<CollisionPair> actual = expected;
         reference->findCandidates(bodies, expected);
-        parallel->findCandidates(bodies, actual);
+        strategy->findCandidates(bodies, actual);
         REQUIRE(actual == expected);
 
-        parallel->update({});
-        parallel->findCandidates({}, actual);
+        strategy->update({});
+        strategy->findCandidates({}, actual);
         REQUIRE(actual == expected);
     }
 }
 
 TEST_CASE("Parallel execution rejects unimplemented strategies", "[core][broadphase][parallel]") {
     for (auto algorithm : {Algorithm::KDTree, Algorithm::SweepAndPrune}) {
-        REQUIRE_THROWS_AS(makeBroadPhase({algorithm, ExecutionMode::Parallel}), std::invalid_argument);
+        REQUIRE(makeBroadPhase({.algorithm = algorithm, .workerCount = 1}) != nullptr);
+        REQUIRE_THROWS_AS(makeBroadPhase({.algorithm = algorithm, .workerCount = 0}), std::invalid_argument);
+        REQUIRE_THROWS_AS(makeBroadPhase({.algorithm = algorithm, .workerCount = 2}), std::invalid_argument);
     }
 }

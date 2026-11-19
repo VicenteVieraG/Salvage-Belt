@@ -189,6 +189,8 @@ namespace salvage::core {
         this->generateRandomBodies(count, seed, settings);
     }
 
+    // Preserve the public count and seed parameter types.
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     void World::generateRandomBodies(std::size_t count, std::uint64_t seed, const RandomBodySettings& settings) {
         if (count == 0) return;
         validateRandomBodySettings(settings);

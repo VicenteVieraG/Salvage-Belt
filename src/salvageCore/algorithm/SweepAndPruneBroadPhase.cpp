@@ -15,7 +15,7 @@ namespace salvage::core {
     void SweepAndPruneBroadPhase::update(std::span<const Body> bodies) {
         if (order.size() != bodies.size()) {
             order.resize(bodies.size());
-            std::iota(order.begin(), order.end(), std::size_t{0});
+            std::ranges::iota(order, std::size_t{0});
         }
 
         const auto minX = [bodies](std::size_t index) { return bodies[index].aabb().min.x; };

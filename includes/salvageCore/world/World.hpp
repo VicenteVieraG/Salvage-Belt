@@ -85,7 +85,7 @@ namespace salvage::core {
              */
             explicit World(Algorithm algorithm, const Vec3& gravity = {});
 
-            /// @brief Choose an algorithm and execution policy for steps and read-only queries.
+            /// @brief Choose an algorithm and worker count for steps and read-only queries.
             explicit World(BroadPhaseOptions options, const Vec3& gravity = {});
 
             /// @brief Copy simulation state and build an independent broad-phase strategy.

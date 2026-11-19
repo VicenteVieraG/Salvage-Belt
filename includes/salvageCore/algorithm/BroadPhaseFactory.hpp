@@ -16,18 +16,14 @@ namespace salvage::core {
         SweepAndPrune ///< Select the single-axis AABB sweep.
     };
 
-    /// @brief Scheduling policy for broad-phase candidate discovery.
-    enum class ExecutionMode { Sequential, Parallel };
-
     struct BroadPhaseOptions {
         Algorithm algorithm{Algorithm::BruteForce};
-        ExecutionMode execution{ExecutionMode::Sequential};
-        /// Maximum parallel workers. Zero uses the runtime default.
-        std::size_t workerCount{};
+        /// One runs sequentially. Zero uses hardware concurrency. Larger values cap the worker count.
+        std::size_t workerCount{1};
     };
 
-    /// @brief Construct a strategy with the requested execution policy.
-    /// @throws std::invalid_argument For unsupported algorithm and mode combinations.
+    /// @brief Construct a strategy with the requested worker count.
+    /// @throws std::invalid_argument For unknown algorithms or parallel requests for indexed strategies.
     std::unique_ptr<IBroadPhase> makeBroadPhase(BroadPhaseOptions options);
 
     /**

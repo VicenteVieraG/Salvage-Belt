@@ -59,7 +59,7 @@ Root Folder/
 > Folder structure diagram created with [Tree](https://tree.nathanfriend.io).
 
 ## Dependencies
-Building the project requires CMake 3.30 or later, a compiler with C++26 support, and a C++ OpenMP runtime.
+Building the project requires CMake 3.30 or later and a C++ compiler with C++26 mode support.
 
 The easiest way to install these dependencies is using a package manager. Here are my preferred package managers, but feel free to use anyone you want, or even install them manually.
 - [APT](https://wiki.debian.org/Apt)

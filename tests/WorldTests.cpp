@@ -699,7 +699,7 @@ TEST_CASE("Potential collision pairs own independent body snapshots", "[core][wo
 
 TEST_CASE("Parallel world queries and steps match sequential contact resolution", "[core][world][parallel]") {
     World sequential;
-    World parallel{BroadPhaseOptions{.execution = ExecutionMode::Parallel, .workerCount = 3}};
+    World parallel{BroadPhaseOptions{.workerCount = 3}};
     for (World* world : {&sequential, &parallel}) {
         world->createBody(Body{{}, {}, 0.0});
         for (int i = 1; i < 80; ++i) world->createBody(Body{{10.0 * i, 0.0, 0.0}});

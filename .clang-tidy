@@ -22,7 +22,6 @@ Checks: >-
   misc-unused-alias-decls,
   misc-unused-parameters,
   misc-unused-using-decls,
-  readability-braces-around-statements,
   readability-const-return-type,
   readability-container-size-empty,
   readability-delete-null-pointer,

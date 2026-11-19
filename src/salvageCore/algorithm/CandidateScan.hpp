@@ -2,43 +2,53 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <exception>
-#include <omp.h>
+#include <thread>
+#include <vector>
 #include "algorithm/IBroadPhase.hpp"
 
 namespace salvage::core {
     // Each row owns its pairs. Each block owns its output until all scans finish.
-    inline void scanCandidateRows(std::size_t rows, std::size_t workerLimit,
-        std::vector<CollisionPair>& out, const auto& scanRow) {
+    inline void scanCandidateRows(std::size_t rows, std::size_t workerLimit, std::vector<CollisionPair>& out, const auto& scanRow) {
         constexpr std::size_t rowsPerBlock = 32;
-        const auto blocks = static_cast<std::ptrdiff_t>(rows / rowsPerBlock + (rows % rowsPerBlock != 0));
-        if (workerLimit == 1 || blocks <= 1) {
+        const std::size_t blockCount = rows / rowsPerBlock + (rows % rowsPerBlock != 0);
+        const std::size_t availableWorkers = workerLimit == 1 || blockCount <= 1
+            ? 1 : std::max(1u, std::thread::hardware_concurrency());
+        const auto requestedWorkers = workerLimit == 0 ? availableWorkers : workerLimit;
+        const auto workerCount = std::min({blockCount, availableWorkers, requestedWorkers});
+        if (workerCount <= 1) {
             for (std::size_t i = 0; i < rows; ++i) scanRow(i, out);
             return;
         }
 
-        const auto available = static_cast<std::size_t>(omp_get_max_threads());
-        const auto workers = static_cast<int>(std::min({available, static_cast<std::size_t>(blocks),
-            workerLimit == 0 ? available : workerLimit}));
         struct BlockResult {
             std::vector<CollisionPair> pairs;
             std::exception_ptr error;
         };
-        std::vector<BlockResult> results(static_cast<std::size_t>(blocks));
-        // Dynamic scheduling balances the longer rows at the start of a brute-force scan.
-        #pragma omp parallel for num_threads(workers) schedule(dynamic, 1)
-        for (std::ptrdiff_t block = 0; block < blocks; ++block) {
-            const auto index = static_cast<std::size_t>(block);
-            auto& result = results[index];
-            const auto begin = index * rowsPerBlock;
-            const auto end = std::min(begin + rowsPerBlock, rows);
-            try {
-                for (auto i = begin; i < end; ++i) scanRow(i, result.pairs);
-            } catch (...) {
-                // Exceptions must leave the OpenMP region on the calling thread.
-                result.error = std::current_exception();
+        std::vector<BlockResult> results(blockCount);
+        std::atomic<std::size_t> nextBlock{0};
+        const auto scanBlocks = [&] {
+            // Claim more work as each block finishes to balance uneven scan costs.
+            for (auto block = nextBlock.fetch_add(1, std::memory_order_relaxed);
+                block < blockCount; block = nextBlock.fetch_add(1, std::memory_order_relaxed)) {
+                auto& result = results[block];
+                const auto begin = block * rowsPerBlock;
+                const auto end = begin + std::min(rowsPerBlock, rows - begin);
+                try {
+                    for (auto i = begin; i < end; ++i) scanRow(i, result.pairs);
+                } catch (...) {
+                    result.error = std::current_exception();
+                }
             }
+        };
+        {
+            // The caller takes one worker slot. jthread joins before results are read.
+            std::vector<std::jthread> threads;
+            threads.reserve(workerCount - 1);
+            for (std::size_t i = 1; i < workerCount; ++i) threads.emplace_back(scanBlocks);
+            scanBlocks();
         }
         for (const auto& result : results) {
             if (result.error) std::rethrow_exception(result.error);

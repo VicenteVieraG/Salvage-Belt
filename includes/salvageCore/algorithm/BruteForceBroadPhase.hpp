@@ -19,7 +19,7 @@ namespace salvage::core {
 
         public:
             BruteForceBroadPhase() = default;
-            /// @brief Limit scan workers. Zero uses the runtime default.
+            /// @brief Limit scan workers. Zero uses hardware concurrency.
             explicit BruteForceBroadPhase(std::size_t workers) : workerCount(workers) {}
 
             /// @copydoc IBroadPhase::initialize()
