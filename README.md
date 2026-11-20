@@ -1,98 +1,61 @@
 # Salvage Belt
 
-A C++ physics sandbox for spheres and axis-aligned boxes, with a terminal interface and a 3D visualizer.
+Salvage Belt is a headless C++26 library for comparing 3D collision algorithms on reproducible scenes of spheres and axis-aligned boxes.
 
-## Run Salvage Belt
+## Build and run
 
 ```sh
-git submodule update --init --recursive
 cmake -S . -B build
-cmake --build build
-./build/bin/salvageAnalytic
-./build/bin/salvageBelt
+cmake --build build --target Salvage_Belt
+./build/bin/Salvage_Belt
 ```
 
-Run `salvageAnalytic` in an interactive terminal or `salvageBelt` on a graphical desktop.
-Each executable opens its own paused demo with spheres, boxes, and a static floor.
-To build either one individually, use `cmake --build build --target salvageAnalytic`
-or `cmake --build build --target salvageBelt`.
+The example executable advances one tick and prints body, candidate, and contact counts. To build just the library, use the target `salvage-core`. The default build uses the C++ standard library and native threads. A sequential-only build is available with `-DSALVAGE_ENABLE_THREADS=OFF`.
 
-| Control | Action |
+To run the regression suite, initialize the existing Catch2 submodule.
+
+```sh
+git submodule update --init tests/catch2
+cmake -S . -B build -DBUILD_TESTS=ON
+cmake --build build --target tests
+ctest --test-dir build --output-on-failure
+```
+
+## Using the core
+
+Link a consumer with `target_link_libraries(my_target PRIVATE salvage::core)`. A CLI can step a run an exact number of times and read counters without copying the scene. A visualizer can request an owned snapshot when it needs a frame.
+
+```cpp
+#include "salvage/core/simulation/Simulation.hpp"
+
+using namespace salvage::core;
+
+SimulationConfig config;
+config.seed = 42;
+config.scene = FieldSettings{.asteroids = 150, .debris = 50};
+config.algorithm = Algorithm::kdTree;
+config.workers = 4;
+Simulation sim(config);
+for (int i = 0; i < 120; ++i) sim.step();
+auto frame = sim.snapshot();
+auto lastTick = sim.metrics();
+sim.restartWith(Algorithm::sweepAndPrune, 1); // Same initial bodies, tick zero.
+```
+
+| Contract | What a consumer can rely on |
 | --- | --- |
-| Space | Play or pause |
-| N | Pause and advance one 1/120-second simulation step |
-| R | Reset the demo |
-| C | Show or hide current contacts |
-| `[` / `]` | Select the previous or next body |
-| Esc | Quit either mode (Q also works in the terminal) |
+| `WorldView` | Read-only borrowed bodies with dense scene-local IDs. Reacquire after a step or reset. |
+| `Simulation::step()` | Advances one fixed tick. Integrates motion, updates the index, finds ordered pairs, confirms geometry, then optionally resolves contacts. The caller owns pause and wall-clock pacing. |
+| `SimulationSnapshot` | Owns completed body states and the sorted candidates and contacts that led to them. Contact geometry precedes positional correction. |
+| `SimulationMetrics` | Reports initialization and per-stage wall-clock seconds, examined pairs, raw and unique candidates, and confirmed contacts. Total step time includes worker dispatch, synchronization, and merging. Memory estimates use reserved index and pair element capacities. |
+| `Simulation::debug()` | Supplies the indexed k-d split regions or sweep intervals on demand. All extraction, formatting, and file I/O can happen outside the timed step. |
+| `reset()` and `restartWith()` | Recreate the world and strategy and clear the tick, contacts, and step metrics. A failed restart preserves the active run. |
 
-In the visualizer, left-click a body to select it, right-drag to orbit, and scroll to zoom.
-Amber markers show contact points and normals for the current geometry after stepping.
+Use `FieldSettings` for generated scenes or supply a `std::vector<Body>` in the configuration for a hand-built scenario. Generation uses one SplitMix64 stream per body, seeded from the run seed and its ID. Workers generate the initial proposals independently. Placement commits in ID order, retries conflicting positions from the same body's stream, and fails explicitly if the placement budget runs out. Spawn bounds constrain initial placement. The simulated space is open, and static box bodies can represent walls.
 
-## Usage
-Create a new project from GitHub and use this repository as a template. You can also copy or clone the code into your computer, delete the .git file and create a new repository with the template. In either case, if you want to enable tests with the Cath2 default template integration, you will need to include it as a git submodule from the .gitmodules file:
-```bash
-git submodule update --init --recursive
-```
+Brute force checks every unordered pair. The k-d tree rebuilds on each step, cycles through the three axes, and splits on a median center down to leaves of eight bodies. Bodies that span a split stay at the parent. Sweep and prune retains its ordering by minimum x between ticks, scans inclusive x intervals, and checks all three axes. Each algorithm uses the same inclusive AABB test and shared sphere/sphere, sphere/box and box/box narrow phase. Tangency counts as contact. The brute-force work counter therefore equals `N * (N - 1) / 2`.
 
-## Features
-- Separate [terminal](./app/salvageAnalytic/main.cpp) and [raylib](./app/salvageBelt/main.cpp) entry points.
-- Catch2 tests integrated with CTest ready to start writing tests in file [tests/main.cpp](./tests/main.cpp).
-- Doxigen documentation building with CMake CI pipeline.
-- Clang-tidy linting at build time.
-- Graphviz dependencies visualization.
-- A set of useful .cmake files with utility functions to enable advanced features.
-- Advanced features easily enabled from the root [CMakeLists.txt](./CMakeLists.txt) file.
-- Professional, scalable and intuitive folder structure for any kind of project.
-
-## Folder Structure
-This template features a professional folder structure. It is solid enough to handle any kind of projects, from small and personal ones, to professional and enterprise ones. At the same time, it is ergonomic and intuitive for anyone to understand it right-away:
-
-```Text
-Root Folder/
-├── app/
-│   ├── CMakeLists.txt
-│   ├── common/
-│   ├── salvageAnalytic/
-│   └── salvageBelt/
-├── cmake/
-│   ├── AddGitSubmodule.cmake
-│   ├── ClangTidy.cmake
-│   ├── Docs.cmake
-│   ├── LTO.cmake
-│   ├── Sanitizer.cmake
-│   └── Warnings.cmake
-├── config/
-│   ├── CMakeLists.txt
-│   └── config.hpp.in
-├── Docs/
-│   └── Doxyfile
-├── external/
-│   └── CMakeLists.txt
-├── includes/
-│   ├── CMakeLists.txt
-│   ├── salvageAnalytic/
-│   ├── salvageBelt/
-│   └── salvageCore/
-├── src/
-│   ├── CMakeLists.txt
-│   ├── salvageAnalytic/
-│   ├── salvageBelt/
-│   └── salvageCore/
-├── tests/
-│   ├── catch2 (git submodule)/
-│   │   └── ...
-│   ├── CMakeLists.txt
-│   └── main.cpp
-├── .clang-tidy
-├── .gitignore
-├── .gitmodules
-├── CMakeLists.txt
-├── LICENSE
-├── Makefile
-└── README.md
-```
-> Folder structure diagram created with [Tree](https://tree.nathanfriend.io).
+A run with multiple workers reuses a CPU pool for proposals, integration, broad-phase scans and narrow-phase batches. The impulse and position solver runs in sorted pair order. Inputs can apply a one-tick force or impulse. Zero inverse mass fixes a body in space. Contact correction revisits detected pairs, and new pairs created by correction are detected on the next tick. Use `Response::detectionOnly` to observe contacts as bodies pass through each other. Detection is discrete, so fast bodies can cross between ticks.
 
 ## Dependencies
 Building the project requires CMake 3.30 or later and a C++ compiler with C++26 mode support.

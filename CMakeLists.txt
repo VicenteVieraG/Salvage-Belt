@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.30)
 
 # Project name, version and languages
-project(Salvage_Belt VERSION 0.3.1 LANGUAGES C CXX)
+project(Salvage_Belt VERSION 0.4.0 LANGUAGES C CXX)
 
 # Configure build options
 set(CMAKE_CXX_STANDARD 26)
@@ -20,6 +20,7 @@ set(SANITIZER_PRESET "default" CACHE STRING "Default sanitizer preset used by sa
 set_property(CACHE SANITIZER_PRESET PROPERTY STRINGS default debug thread memory leak)
 
 # Options
+option(SALVAGE_ENABLE_THREADS "Enable the persistent CPU worker pool." ON)
 option(BUILD_TESTS "Build Catch2 unit tests." OFF)
 option(BUILD_TESTS_WITH_MAIN "Build Catch2 Tests with custom main function." OFF)
 option(ENABLE_WARNINGS "Enable compiler warnings." OFF)
@@ -30,7 +31,9 @@ option(ENABLE_LTO_GLOBALY "Enable LTO/IPO globally for Release and RelWithDebInf
 
 # Modules include
 include(LTO)
-include(Docs)
+if(PROJECT_IS_TOP_LEVEL)
+    include(Docs)
+endif()
 include(Warnings)
 include(ClangTidy)
 include(Sanitizer)
@@ -40,9 +43,10 @@ if(BUILD_TESTS)
 endif()
 
 # Subdirectories
-add_subdirectory(config)
-add_subdirectory(external)
 add_subdirectory(src)
 add_subdirectory(includes)
-add_subdirectory(app)
+if(PROJECT_IS_TOP_LEVEL)
+    add_subdirectory(config)
+    add_subdirectory(app)
+endif()
 add_subdirectory(tests)
