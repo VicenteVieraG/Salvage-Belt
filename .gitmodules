@@ -10,3 +10,9 @@
 [submodule "ftxui"]
 	path = external/ftxui
 	url = https://github.com/ArthurSonzogni/FTXUI.git
+[submodule "json"]
+	path = external/json
+	url = https://github.com/nlohmann/json.git
+[submodule "csv"]
+	path = external/csv
+	url = https://github.com/vincentlaucsb/csv-parser.git
