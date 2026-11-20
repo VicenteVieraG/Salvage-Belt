@@ -1,17 +1,17 @@
 add_library(salvage-core STATIC
-    world/World.cpp
-    execution/Executor.cpp
-    collision/BroadPhase.cpp
-    collision/KDTree.cpp
-    collision/SweepAndPrune.cpp
-    collision/Detection.cpp
-    collision/Contact.cpp
-    physics/ContactSolver.cpp
-    physics/Dynamics.cpp
-    simulation/Simulation.cpp
+    salvage-core/world/World.cpp
+    salvage-core/execution/Executor.cpp
+    salvage-core/collision/BroadPhase.cpp
+    salvage-core/collision/KDTree.cpp
+    salvage-core/collision/SweepAndPrune.cpp
+    salvage-core/collision/Detection.cpp
+    salvage-core/collision/Contact.cpp
+    salvage-core/physics/ContactSolver.cpp
+    salvage-core/physics/Dynamics.cpp
+    salvage-core/simulation/Simulation.cpp
 )
 add_library(salvage::core ALIAS salvage-core)
-target_include_directories(salvage-core PUBLIC "${PROJECT_SOURCE_DIR}/includes")
+target_include_directories(salvage-core PUBLIC "${PROJECT_SOURCE_DIR}/includes/salvage-core")
 target_compile_features(salvage-core PUBLIC cxx_std_26)
 target_compile_definitions(salvage-core PRIVATE SALVAGE_ENABLE_THREADS=$<BOOL:${SALVAGE_ENABLE_THREADS}>)
 if(SALVAGE_ENABLE_THREADS)
