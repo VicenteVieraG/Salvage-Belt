@@ -1,11 +1,8 @@
 # Main CMake file
-
-#! CMake minimum version. Make sure your current CMake version is equal or greater than this
 cmake_minimum_required(VERSION 3.30)
 
 # Project name, version and languages
-#! Change the project name and version here
-project(Salvage_Belt VERSION 0.2.2 LANGUAGES C CXX)
+project(Salvage_Belt VERSION 0.3.0 LANGUAGES C CXX)
 
 # Configure build options
 set(CMAKE_CXX_STANDARD 26)
@@ -25,10 +22,10 @@ set_property(CACHE SANITIZER_PRESET PROPERTY STRINGS default debug thread memory
 # Options
 option(BUILD_TESTS "Build Catch2 unit tests." OFF)
 option(BUILD_TESTS_WITH_MAIN "Build Catch2 Tests with custom main function." OFF)
-option(ENABLE_WARNINGS "Enable compiler warnings." ON)
+option(ENABLE_WARNINGS "Enable compiler warnings." OFF)
 option(ENABLE_WARNINGS_AS_ERRORS "Enable compiler warnings as errors." OFF)
-option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis." ON)
-option(ENABLE_SANITIZERS "Enable sanitizer helpers for targets." ON)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis." OFF)
+option(ENABLE_SANITIZERS "Enable sanitizer helpers for targets." OFF)
 option(ENABLE_LTO_GLOBALY "Enable LTO/IPO globally for Release and RelWithDebInfo targets." ON)
 
 # Modules include
@@ -43,7 +40,6 @@ if(BUILD_TESTS)
 endif()
 
 # Subdirectories
-#! NOTE: The add_subdirectory order matters
 add_subdirectory(config)
 add_subdirectory(external)
 add_subdirectory(src)

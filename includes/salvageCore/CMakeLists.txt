@@ -1,1 +1,0 @@
-target_include_directories(salvageCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

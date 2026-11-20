@@ -1,20 +1,11 @@
-/**
- * @file
- * @brief Project metadata populated by CMake during configuration.
- */
 #pragma once
 
 #include <cstdint>
 #include <string_view>
 
-/// @brief Project name supplied by CMake.
 static constexpr std::string_view project_name = "@PROJECT_NAME@";
-/// @brief Complete project version supplied by CMake.
 static constexpr std::string_view project_version = "@PROJECT_VERSION@";
 
-/// @brief Major component of the project version.
 static constexpr std::int32_t project_version_major{@PROJECT_VERSION_MAJOR@};
-/// @brief Minor component of the project version.
 static constexpr std::int32_t project_version_minor{@PROJECT_VERSION_MINOR@};
-/// @brief Patch component of the project version.
 static constexpr std::int32_t project_version_patch{@PROJECT_VERSION_PATCH@};
