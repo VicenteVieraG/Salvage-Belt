@@ -12,3 +12,8 @@ target_set_warnings(
     ${CMAKE_PROJECT_NAME}
     ${ENABLE_WARNINGS_AS_ERRORS}
 )
+
+option(SALVAGE_BUILD_HEADLESS "Build the salvage-headless benchmark CLI." ON)
+if(SALVAGE_BUILD_HEADLESS)
+    add_subdirectory(headless)
+endif()

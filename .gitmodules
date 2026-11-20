@@ -16,3 +16,6 @@
 [submodule "csv"]
 	path = external/csv
 	url = https://github.com/vincentlaucsb/csv-parser.git
+[submodule "cli11"]
+	path = external/cli11
+	url = https://github.com/CLIUtils/CLI11.git

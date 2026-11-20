@@ -1,0 +1,12 @@
+#pragma once
+namespace salvage::headless::build {
+inline constexpr auto version = "@PROJECT_VERSION@";
+inline constexpr auto revision = "@revision@";
+inline constexpr auto compiler = "@CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@";
+inline constexpr auto system = "@CMAKE_SYSTEM_NAME@";
+inline constexpr auto architecture = "@CMAKE_SYSTEM_PROCESSOR@";
+inline constexpr auto configuration = "$<CONFIG>";
+inline constexpr auto flags = R"flags(@build_flags@ $<JOIN:$<TARGET_PROPERTY:salvage-core,COMPILE_OPTIONS>, >)flags";
+inline constexpr bool threads = $<BOOL:@SALVAGE_ENABLE_THREADS@>;
+inline constexpr bool ipo = $<BOOL:$<TARGET_PROPERTY:salvage-core,INTERPROCEDURAL_OPTIMIZATION_$<UPPER_CASE:$<CONFIG>>>>;
+}

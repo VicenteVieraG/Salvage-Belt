@@ -1,18 +1,23 @@
 # Salvage Belt
 
-Salvage Belt is a headless C++26 library for comparing 3D collision algorithms on reproducible scenes of spheres and axis-aligned boxes.
+Salvage Belt is a C++26 collision simulation library and benchmark CLI for comparing 3D collision algorithms on reproducible scenes of spheres and axis-aligned boxes.
 
 ## Build and run
 
 ```sh
-cmake -S . -B build
-cmake --build build --target Salvage_Belt
-./build/bin/Salvage_Belt
+git submodule update --init external/cli11 external/json external/csv
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target salvage-headless
+./build/bin/salvage-headless --help
+./build/bin/salvage-headless --algorithm all --workers 1,4 --seed 42 \
+    --bodies 128 --warmup 10 --steps 120 --repetitions 3 --json results.json --csv ticks.csv
 ```
 
-The example executable advances one tick and prints body, candidate, and contact counts. To build just the library, use the target `salvage-core`. The default build uses the C++ standard library and native threads. A sequential-only build is available with `-DSALVAGE_ENABLE_THREADS=OFF`.
+With no arguments, the CLI compares all three algorithms on the same 128-body uniform field with seed 1 and one worker. It runs 10 warmup ticks and 60 measured ticks three times per algorithm. It prints a summary to the terminal. Pass `--json -` or `--csv -` to pipe an export to another program. The summary then goes to standard error.
 
-To run the regression suite, initialize the existing Catch2 submodule.
+The `salvage-core` target and the original one-tick `Salvage_Belt` example use only the standard library and native threads. Configure with `-DSALVAGE_BUILD_HEADLESS=OFF` to omit the benchmark executable, or `-DSALVAGE_ENABLE_THREADS=OFF` for a sequential build.
+
+To run the regression suite, also initialize Catch2.
 
 ```sh
 git submodule update --init tests/catch2
@@ -20,6 +25,34 @@ cmake -S . -B build -DBUILD_TESTS=ON
 cmake --build build --target tests
 ctest --test-dir build --output-on-failure
 ```
+
+## Running comparisons
+
+Each combination of scenario, body count, and seed defines a case. The CLI cold-starts each algorithm and worker count for each repetition, advancing exactly the requested number of fixed steps. It rotates the execution order between repetitions. The first measured tick is `warmup + 1`.
+
+| Option | What it controls |
+| --- | --- |
+| `--mode simulation` | Times the full `Simulation::step()`, including integration and the selected contact response. |
+| `--mode replay` | Builds one ordered recording of pre-response body states per case. Times detection on those same frames with a fresh index per repetition, preserving index history through warmup and measurement. |
+| `--response resolve\|detection-only` | Selects collision response or pass-through motion in the simulation and the replay source. |
+| `--scenario`, `--bodies`, `--seed`, `--algorithm`, `--workers` | Accept comma-separated lists. Algorithms are `brute-force`, `kd-tree`, and `sweep-and-prune`. Workers include the calling thread. |
+| `--scale volume\|density` | Holds the nominal spawn volume fixed (default), or scales it proportionally to body count from the 128-body field. |
+| `--asteroids N --debris M` | Sets an explicit shape mix. With `--bodies`, half the bodies are boxes, rounded down. |
+| `--fixed-step SEC` | Sets simulated seconds per tick, with a default of 1/120. |
+
+The `uniform` scenario uses the core field defaults. `fast` and `slow` use velocity components in ±40 and ±0.1, respectively. `heterogeneous` samples extents from 0.1 to 2.5. Three stress scenarios transform initial centers after seeded placement and allow overlaps. `dense` scales centers by 0.16, `aligned` projects them onto the x-axis, and `clustered` scales them by 0.25 and shifts the two halves outward by 55% of the spawn half-width.
+
+By default, an untimed serial reference checks every unordered pair with the shared narrow phase at every tick. A separate preflight checks each variant's normalized candidates and contacts against that reference, including the warmup. Simulation mode also compares fingerprints of the initial state and every completed trajectory state within the same build. `--no-validate` skips preflight for exploratory runs and marks the result as unchecked. Replay retains one body array per tick in memory. Preparing a replay with contact response also computes reference contacts to advance the recording.
+
+### Reading the results
+
+JSON schema version 1 contains `environment`, `protocol`, and `cases`. Each case records generation settings, nominal density, reference preparation time, and an array of algorithm/worker variants. Each variant records validation status, errors, a summary, and independent runs with one sample per measured tick. The environment includes the revision at CMake configuration time, compiler, flags, build configuration, and available host information. CPU model and physical RAM are read on Linux. Unavailable values are null.
+
+Timing fields ending in `_s` are wall-clock seconds. Generation and index initialization are cold-start costs. Per-tick timings come from the core and include worker dispatch and synchronization. The separate validation pass, replay preparation, and file formatting are outside those measurements. Index and pair-buffer bytes estimate reserved element storage. Peak collision storage includes the warmup.
+
+The reported mean, median, p95, and population standard deviation describe **repetition means**. Percentiles interpolate between adjacent sorted values. Speedups divide a validated baseline median by the selected variant's median, using total step time in simulation mode and detection time in replay. Include one-worker brute force for the algorithm comparison and a one-worker run of the same algorithm for parallel speedup and efficiency. Missing baselines and undefined ratios are null.
+
+CSV repeats the case identifiers and run settings on each tick row. Empty cells represent unavailable measurements. A failed variant carries its error in the exports, has no summary, and makes the CLI exit with a nonzero status. Other variants can still complete.
 
 ## Using the core
 

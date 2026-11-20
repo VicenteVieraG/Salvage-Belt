@@ -26,3 +26,12 @@ if(BUILD_TESTS)
         )
     endif()
 endif()
+
+if(BUILD_TESTS AND TARGET salvage-headless)
+    add_dependencies(tests salvage-headless)
+    foreach(mode simulation replay)
+        add_test(NAME "salvage-headless.${mode}" COMMAND "${CMAKE_COMMAND}"
+            "-DCLI=$<TARGET_FILE:salvage-headless>" "-DMODE=${mode}"
+            "-DTHREADED=${SALVAGE_ENABLE_THREADS}" -P "${CMAKE_CURRENT_SOURCE_DIR}/Headless.cmake")
+    endforeach()
+endif()
