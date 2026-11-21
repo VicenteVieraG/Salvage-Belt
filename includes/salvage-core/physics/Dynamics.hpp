@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ContactSolver.hpp"
-#include "salvage/core/world/World.hpp"
+#include "salvage-core/world/World.hpp"
 
 namespace salvage::core {
 

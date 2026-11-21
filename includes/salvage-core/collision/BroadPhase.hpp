@@ -1,6 +1,6 @@
 #pragma once
 
-#include "salvage/core/world/World.hpp"
+#include "salvage-core/world/World.hpp"
 #include <memory>
 #include <utility>
 

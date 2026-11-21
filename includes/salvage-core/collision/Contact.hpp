@@ -5,7 +5,7 @@
 #pragma once
 
 #include <optional>
-#include "salvage/core/world/Body.hpp"
+#include "salvage-core/world/Body.hpp"
 
 namespace salvage::core {
     /** @brief One representative contact; angular response is not modeled. */

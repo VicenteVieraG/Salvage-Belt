@@ -11,7 +11,7 @@ add_library(salvage-core STATIC
     salvage-core/simulation/Simulation.cpp
 )
 add_library(salvage::core ALIAS salvage-core)
-target_include_directories(salvage-core PUBLIC "${PROJECT_SOURCE_DIR}/includes/salvage-core")
+target_include_directories(salvage-core PUBLIC "${PROJECT_SOURCE_DIR}/includes")
 target_compile_features(salvage-core PUBLIC cxx_std_26)
 target_compile_definitions(salvage-core PRIVATE SALVAGE_ENABLE_THREADS=$<BOOL:${SALVAGE_ENABLE_THREADS}>)
 if(SALVAGE_ENABLE_THREADS)

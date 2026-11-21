@@ -1,5 +1,5 @@
 /** @file @brief Accumulated sequential impulses and positional stabilization. */
-#include "salvage/core/physics/ContactSolver.hpp"
+#include "salvage-core/physics/ContactSolver.hpp"
 
 #include <algorithm>
 #include <cmath>

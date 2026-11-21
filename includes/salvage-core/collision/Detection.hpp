@@ -2,7 +2,7 @@
 
 #include "BroadPhase.hpp"
 #include "Contact.hpp"
-#include "salvage/core/metrics/SimulationMetrics.hpp"
+#include "salvage-core/metrics/SimulationMetrics.hpp"
 
 namespace salvage::core {
 

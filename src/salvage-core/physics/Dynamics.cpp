@@ -1,5 +1,5 @@
-#include "salvage/core/physics/Dynamics.hpp"
-#include "salvage/core/execution/Executor.hpp"
+#include "salvage-core/physics/Dynamics.hpp"
+#include "salvage-core/execution/Executor.hpp"
 
 #include <cmath>
 #include <stdexcept>

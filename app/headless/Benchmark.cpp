@@ -1,5 +1,5 @@
 #include "Benchmark.hpp"
-#include "salvage/core/execution/Executor.hpp"
+#include "salvage-core/execution/Executor.hpp"
 
 #include <algorithm>
 #include <bit>

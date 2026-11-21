@@ -6,7 +6,7 @@
 
 #include <cstddef>
 #include <span>
-#include "salvage/core/collision/Contact.hpp"
+#include "salvage-core/collision/Contact.hpp"
 
 namespace salvage::core {
     /** @brief Contact solver controls, validated by Simulation at run initialization. */

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "salvage/core/simulation/Simulation.hpp"
+#include "salvage-core/simulation/Simulation.hpp"
 
 #include <expected>
 #include <filesystem>

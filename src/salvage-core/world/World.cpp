@@ -1,5 +1,5 @@
-#include "salvage/core/world/World.hpp"
-#include "salvage/core/execution/Executor.hpp"
+#include "salvage-core/world/World.hpp"
+#include "salvage-core/execution/Executor.hpp"
 #include "PlacementIndex.hpp"
 
 #include <cmath>

@@ -1,4 +1,4 @@
-#include "salvage/core/simulation/Simulation.hpp"
+#include "salvage-core/simulation/Simulation.hpp"
 #include <config.hpp>
 #include <iostream>
 

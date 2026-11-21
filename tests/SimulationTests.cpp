@@ -1,5 +1,5 @@
-#include "salvage/core/simulation/Simulation.hpp"
-#include "salvage/core/execution/Executor.hpp"
+#include "salvage-core/simulation/Simulation.hpp"
+#include "salvage-core/execution/Executor.hpp"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <algorithm>

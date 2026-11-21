@@ -1,7 +1,7 @@
 #pragma once
 
-#include "salvage/core/collision/Detection.hpp"
-#include "salvage/core/physics/Dynamics.hpp"
+#include "salvage-core/collision/Detection.hpp"
+#include "salvage-core/physics/Dynamics.hpp"
 
 namespace salvage::core {
 

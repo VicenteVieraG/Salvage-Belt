@@ -1,7 +1,7 @@
 /** @file @brief Shape-level contact geometry and query regression tests. */
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include "salvage/core/collision/Contact.hpp"
+#include "salvage-core/collision/Contact.hpp"
 
 using namespace salvage::core;
 using Catch::Approx;

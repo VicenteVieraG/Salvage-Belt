@@ -59,7 +59,7 @@ CSV repeats the case identifiers and run settings on each tick row. Empty cells 
 Link a consumer with `target_link_libraries(my_target PRIVATE salvage::core)`. A CLI can step a run an exact number of times and read counters without copying the scene. A visualizer can request an owned snapshot when it needs a frame.
 
 ```cpp
-#include "salvage/core/simulation/Simulation.hpp"
+#include "salvage-core/simulation/Simulation.hpp"
 
 using namespace salvage::core;
 

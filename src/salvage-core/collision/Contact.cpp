@@ -1,5 +1,5 @@
 /** @file @brief Narrow-phase geometry for the supported collider pairs. */
-#include "salvage/core/collision/Contact.hpp"
+#include "salvage-core/collision/Contact.hpp"
 
 #include <algorithm>
 #include <array>
