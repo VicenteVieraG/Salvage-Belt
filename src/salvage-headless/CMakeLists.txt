@@ -12,7 +12,7 @@ target_sources(salvage-headless-lib PUBLIC
 # The CSV writer is header-only.
 target_link_libraries(salvage-headless-lib
     PUBLIC salvage::core
-    PRIVATE CLI11::CLI11 nlohmann_json::nlohmann_json $<COMPILE_ONLY:csv>
+    PRIVATE salvage-benchmark CLI11::CLI11 nlohmann_json::nlohmann_json $<COMPILE_ONLY:csv>
 )
 target_set_warnings(salvage-headless-lib ${ENABLE_WARNINGS_AS_ERRORS})
 target_enable_clang_tidy(salvage-headless-lib)

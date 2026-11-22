@@ -23,6 +23,12 @@ target_enable_clang_tidy(salvage-core)
 target_enable_sanitizers(salvage-core)
 
 if(SALVAGE_BUILD_HEADLESS OR SALVAGE_BUILD_ANALYTICS)
+    add_library(salvage-benchmark STATIC benchmark/Run.cpp)
+    target_link_libraries(salvage-benchmark PUBLIC salvage::core)
+    target_set_warnings(salvage-benchmark ${ENABLE_WARNINGS_AS_ERRORS})
+    target_enable_clang_tidy(salvage-benchmark)
+    target_enable_sanitizers(salvage-benchmark)
+
     if(NOT TARGET nlohmann_json::nlohmann_json)
         add_subdirectory("${PROJECT_SOURCE_DIR}/external/json" "${PROJECT_BINARY_DIR}/external/json" EXCLUDE_FROM_ALL SYSTEM)
     endif()

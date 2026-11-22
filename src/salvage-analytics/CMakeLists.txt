@@ -9,7 +9,10 @@ target_sources(salvage-analytics-lib PUBLIC
     BASE_DIRS "${PROJECT_SOURCE_DIR}/includes"
     FILES "${PROJECT_SOURCE_DIR}/includes/salvage-analytics/Dashboard.hpp"
 )
-target_link_libraries(salvage-analytics-lib PUBLIC salvage::core PRIVATE ftxui::ftxui nlohmann_json::nlohmann_json csv)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+target_link_libraries(salvage-analytics-lib PUBLIC salvage::core
+    PRIVATE salvage-benchmark ftxui::ftxui nlohmann_json::nlohmann_json csv Threads::Threads)
 target_compile_definitions(salvage-analytics-lib PRIVATE SALVAGE_ENABLE_THREADS=$<BOOL:${SALVAGE_ENABLE_THREADS}>)
 target_set_warnings(salvage-analytics-lib ${ENABLE_WARNINGS_AS_ERRORS})
 target_enable_clang_tidy(salvage-analytics-lib)

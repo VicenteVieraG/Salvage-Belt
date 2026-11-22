@@ -1,6 +1,7 @@
 #pragma once
 
 #include "salvage-core/simulation/Simulation.hpp"
+#include <ftxui/component/component_base.hpp>
 #include <ftxui/dom/elements.hpp>
 
 #include <deque>
@@ -14,5 +15,7 @@ ftxui::Element metricsView(const core::SimulationMetrics& metrics, const std::de
                            bool wide, bool showGraph);
 ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t& selected, bool showContacts, bool wide,
                              MouseControls& mouse);
+// The simulation must remain paused while the report view borrows its results.
+ftxui::Component individualsView(const core::Simulation& simulation, std::size_t selected, MouseControls& mouse);
 
 }

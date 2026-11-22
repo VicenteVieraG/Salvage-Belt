@@ -33,13 +33,14 @@ public:
 
     Element OnRender() override {
         const auto size = Terminal::Size();
+        const auto title = report_.filename.empty() ? "Generated benchmark" : "Saved benchmark";
         if (size.dimx < 44 || size.dimy < 20)
-            return vbox({text("Saved benchmark") | bold, paragraph("Resize to at least 44 columns and 20 rows."),
+            return vbox({text(title) | bold, paragraph("Resize to at least 44 columns and 20 rows."),
                          mouse_.button("q Quit", Event::q)});
         const auto& p = report_.protocol;
         const auto& scene = currentCase().scene;
         Elements page{
-            hbox({text(" Saved benchmark ") | bold | inverted, text(" " + report_.filename) | flex}),
+            hbox({text(std::format(" {} ", title)) | bold | inverted, text(" " + report_.filename) | flex}),
             hflow({text(std::format(" Case {}/{}   {}   ", case_ + 1, report_.cases.size(), displayText(scene.scenario))),
                    text(std::format("{} bodies   Seed {}", scene.bodies, scene.seed))}),
             hflow({text(p.replay ? " Replay · detection time   " : " Simulation · total step time   "),
@@ -118,12 +119,13 @@ private:
         const auto& v = variant();
         const auto& scene = currentCase().scene;
         const auto& p = report_.protocol;
+        Elements settings{text(std::format(" {} spheres, {} boxes   ", scene.asteroids, scene.debris)),
+                          text(std::format("{}   ", displayText(p.response)))};
+        if (!p.scale.empty()) settings.push_back(text(std::format("Fixed {}   ", displayText(p.scale))));
+        settings.push_back(text(std::format("Step {:.3g} ms", 1e3 * p.fixedStep)));
         Elements rows{text(std::format(" {}   {} worker{}", displayText(v.algorithm), v.workers, v.workers == 1 ? "" : "s")) | bold,
                       text(std::format(" {} · validation {}", v.status, displayText(v.validation))),
-                      hflow({text(std::format(" {} spheres, {} boxes   ", scene.asteroids, scene.debris)),
-                             text(std::format("{}   ", displayText(p.response))),
-                             text(std::format("Fixed {}   ", displayText(p.scale))),
-                             text(std::format("Step {:.3g} ms", 1e3 * p.fixedStep))})};
+                      hflow(std::move(settings))};
         if (v.timing) {
             const auto& t = *v.timing;
             rows.push_back(hflow({text(std::format(" Mean {} µs   ", micros(t.mean))),

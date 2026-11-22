@@ -1,4 +1,5 @@
 #include "salvage-analytics/Report.hpp"
+#include "benchmark/Run.hpp"
 
 #include <csv.hpp>
 #include <nlohmann/json.hpp>
@@ -148,7 +149,7 @@ SavedReport readCsv(std::istream& in) {
     return report;
 }
 
-void finishCase(ReportCase& scene, const ReportProtocol& p, bool csv) {
+void finishCase(ReportCase& scene, const ReportProtocol& p, bool reconstructTiming) {
     require(!scene.variants.empty(), "Benchmark case has no variants");
     for (auto& v : scene.variants) {
         const bool complete = v.status == "complete";
@@ -158,7 +159,7 @@ void finishCase(ReportCase& scene, const ReportProtocol& p, bool csv) {
         for (std::size_t i = 0; i < v.runs.size(); ++i) {
             auto& run = v.runs[i];
             require(run.repetition == i + 1 && run.samples.size() == p.steps, "Incomplete benchmark repetition");
-            if (csv) std::ranges::sort(run.samples, {}, &Sample::tick);
+            if (reconstructTiming) std::ranges::sort(run.samples, {}, &Sample::tick);
             double sum{};
             for (std::size_t j = 0; j < run.samples.size(); ++j) {
                 const auto& s = run.samples[j];
@@ -167,9 +168,9 @@ void finishCase(ReportCase& scene, const ReportProtocol& p, bool csv) {
             }
             means.push_back(sum / run.samples.size());
         }
-        if (csv && complete) v.timing = benchmark::summarize(std::move(means));
+        if (reconstructTiming && complete) v.timing = benchmark::summarize(std::move(means));
     }
-    if (!csv) return;
+    if (!reconstructTiming) return;
     const auto baseline = std::ranges::find_if(scene.variants, [](const auto& v) {
         return v.algorithm == "brute-force" && v.workers == 1 && v.validation == "passed" && v.timing;
     });
@@ -203,6 +204,53 @@ SavedReport loadReport(const std::filesystem::path& path) {
     require(!report.cases.empty(), "The report has no benchmark cases");
     for (auto& c : report.cases) finishCase(c, report.protocol, csv);
     report.filename = displayText(path.filename().string());
+    return report;
+}
+
+std::optional<SavedReport> generateBenchmark(const core::SimulationConfig& config,
+                                             std::span<const core::Algorithm> algorithms, std::stop_token stop) {
+    const benchmark::RunSettings settings{.algorithms = algorithms, .workers = std::span(&config.workers, 1),
+                                          .validate = false};
+    auto result = benchmark::run(settings, [&](std::size_t workers, core::Duration&) {
+        auto trialConfig = config;
+        trialConfig.workers = workers;
+        return trialConfig;
+    }, stop);
+    if (stop.stop_requested()) return std::nullopt;
+
+    SceneKey key{"Seeded field", config.seed, 0, 0, 0};
+    if (const auto* field = std::get_if<core::FieldSettings>(&config.scene)) {
+        key.asteroids = field->asteroids;
+        key.debris = field->debris;
+    } else {
+        key.scenario = "Custom scene";
+        const auto& bodies = std::get<std::vector<core::Body>>(config.scene);
+        key.asteroids = std::ranges::count_if(bodies, [](const auto& body) {
+            return std::holds_alternative<core::SphereCollider>(body.getCollider());
+        });
+        key.debris = bodies.size() - key.asteroids;
+    }
+    key.bodies = key.asteroids + key.debris;
+
+    SavedReport report{{}, {false, config.response == core::Response::resolveContacts ? "resolve" : "detection-only",
+                            {}, config.fixedStep, settings.warmup, settings.steps, settings.repetitions}, {}};
+    auto& scene = report.cases.emplace_back(ReportCase{std::move(key), {}});
+    for (auto& variant : result.variants) {
+        ReportVariant entry{std::string(benchmark::algorithmName(variant.algorithm)), variant.workers,
+                            variant.error.empty() ? "complete" : "failed", std::move(variant.validation),
+                            std::move(variant.error), {}, {}, {}};
+        for (const auto& trial : variant.trials) {
+            auto& run = entry.runs.emplace_back(ReportRun{trial.repetition, {}});
+            run.samples.reserve(trial.samples.size());
+            for (const auto& sample : trial.samples) {
+                const auto& d = sample.detection;
+                run.samples.push_back({sample.stepIndex, sample.totalStep.count(), d.total.count(), d.pairsExamined,
+                                       d.uniqueCandidates, d.contacts});
+            }
+        }
+        scene.variants.push_back(std::move(entry));
+    }
+    finishCase(scene, report.protocol, true);
     return report;
 }
 

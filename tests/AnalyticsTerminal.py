@@ -160,6 +160,46 @@ def main(executable):
         screen = after(b"b8192\r")
         assert "8192 bodies" in screen and "Tick 0 " in screen
 
+    with terminal(executable, "--bodies", "5") as master:
+        frame = full_frame(master)
+        mouse_at(master, frame, "g Generate report")
+        expect(master, b"3 Individuals report")
+        os.write(master, b"3")
+        expect(master, b"Waiting for the first tick")
+        os.write(master, b"\x1b")
+        expect(master, b"Salvage Analytics")
+        os.write(master, b"n")
+        expect(master, b"1 tick   Mean")
+        os.write(master, b"g1")
+        expect(master, b"Generated benchmark")
+        frame = "\n".join(resize_frame(master, 81))
+        for algorithm in ("brute-force", "kd-tree", "sweep-and-prune"):
+            assert re.search(rf"{algorithm}\s+1\s+\d+\.\d+\s+\d+\.\d+", frame), frame
+        os.write(master, b"\r")
+        expect(master, b"Repetition 1/3   Tick 11")
+        os.write(master, b"\x1b")
+        expect(master, b"Algorithm")
+        os.write(master, b"\x1b")
+        assert "Tick 1 " in resize_frame(master, 80)[0]
+
+        os.write(master, b"2g2")
+        expect(master, b"Generated benchmark")
+        frame = "\n".join(resize_frame(master, 44, 20))
+        assert "kd-tree" in frame and "Variant 1/1" in frame and "brute-force" not in frame
+        os.write(master, b"\x1b")
+        assert "Tick 1 " in resize_frame(master, 45, 20)[0]
+        os.write(master, b"g3[")
+        frame = "\n".join(resize_frame(master, 44, 20))
+        assert "Individuals report" in frame and "Tick 1" in frame and "Body #4 · Box" in frame
+        assert "No contacts for this body" in frame and "Position" in frame
+
+    with terminal(executable, "--bodies", "8192") as master:
+        expect(master, b"Press n for one tick")
+        os.write(master, b"g1")
+        expect(master, b"Running benchmark")
+        os.write(master, b"\x1b")
+        expect(master, b"Salvage Analytics")
+
 
 if __name__ == "__main__":
     main(sys.argv[1])

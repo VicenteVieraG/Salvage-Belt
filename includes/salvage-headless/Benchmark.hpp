@@ -1,6 +1,6 @@
 #pragma once
 
-#include "salvage-core/simulation/Simulation.hpp"
+#include "benchmark/Run.hpp"
 
 #include <expected>
 #include <filesystem>
@@ -33,19 +33,8 @@ struct Options {
 std::expected<Options, int> parseOptions(int argc, char** argv);
 std::string_view name(core::Algorithm algorithm);
 
-struct Trial {
-    std::size_t repetition{}, order{};
-    core::Duration generation{}, initialization{};
-    std::vector<core::SimulationMetrics> samples;
-};
-
-struct Variant {
-    core::Algorithm algorithm;
-    std::size_t workers;
-    std::string validation;
-    std::string error;
-    std::vector<Trial> trials;
-};
+using benchmark::Trial;
+using benchmark::Variant;
 
 struct Case {
     std::string scenario;

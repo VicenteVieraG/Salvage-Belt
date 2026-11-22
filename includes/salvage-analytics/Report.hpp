@@ -5,8 +5,15 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <span>
+#include <stop_token>
 #include <string>
 #include <vector>
+
+namespace salvage::core {
+enum class Algorithm;
+struct SimulationConfig;
+}
 
 namespace salvage::analytics {
 
@@ -56,6 +63,8 @@ struct SavedReport {
 };
 
 SavedReport loadReport(const std::filesystem::path& path);
+std::optional<SavedReport> generateBenchmark(const core::SimulationConfig& config,
+                                             std::span<const core::Algorithm> algorithms, std::stop_token stop);
 std::string displayText(std::string text);
 
 }

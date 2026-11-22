@@ -51,12 +51,7 @@ bool sameOutput(const std::filesystem::path& a, const std::filesystem::path& b) 
 }
 
 std::string_view name(Algorithm algorithm) {
-    switch (algorithm) {
-        case Algorithm::bruteForce: return "brute-force";
-        case Algorithm::kdTree: return "kd-tree";
-        case Algorithm::sweepAndPrune: return "sweep-and-prune";
-    }
-    throw std::invalid_argument("Unknown broad phase");
+    return salvage::benchmark::algorithmName(algorithm);
 }
 
 std::expected<Options, int> parseOptions(int argc, char** argv) {

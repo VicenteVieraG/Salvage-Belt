@@ -11,7 +11,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <chrono>
 #include <format>
+#include <future>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -49,6 +51,10 @@ public:
     void pause() { playing_ = false; elapsed_ = 0; }
 
     std::size_t bodyCount() const { return simulation_.world().bodies.size(); }
+
+    const core::SimulationConfig& config() const { return simulation_.config(); }
+
+    Component individualsReport() const { return individualsView(simulation_, selected_, mouse_); }
 
     void setBodyCount(core::BodyId count) {
         if (count == bodyCount()) return;
@@ -95,6 +101,7 @@ public:
                           mouse_.button("n Step", Event::n), mouse_.button("r Reset", Event::r)};
         if (wide) commands.push_back(mouse_.button("Tab View", Event::Tab));
         commands.push_back(mouse_.button(wide ? "o Open report" : "o Open", Event::o));
+        commands.push_back(mouse_.button(wide ? "g Generate report" : "g Generate", Event::g));
         if (wide) commands.push_back(mouse_.button("q Quit", Event::q));
         Elements page{heading, hflow(std::move(settings)), separator(), tabs,
                       inspect_ ? inspectorView(simulation_, selected_, showContacts_, wide, mouse_)
@@ -262,7 +269,7 @@ void runApp(core::SimulationConfig config, std::optional<SavedReport> initialRep
         show(current);
     } else showLive();
 
-    enum class Prompt { none, report, bodies };
+    enum class Prompt { none, report, bodies, generate, running };
     auto editing = Prompt::none;
     std::string entry, placeholder, error;
     InputOption options;
@@ -276,7 +283,74 @@ void runApp(core::SimulationConfig config, std::optional<SavedReport> initialRep
                      filler(), hbox({mouse.button(bodies ? "Enter Apply" : "Enter Open", Event::Return),
                                      mouse.button("Esc Cancel", Event::Escape)})});
     });
+    auto generate = Renderer([&] {
+        return vbox({text(" Generate report ") | bold, separator(),
+                     paragraph("Benchmark the scene from tick zero with its current worker count."),
+                     hflow({mouse.button("1 Compare all algorithms", Event::Character('1')),
+                            mouse.button("2 Benchmark current algorithm", Event::Character('2'))}),
+                     paragraph("Inspect body state and contacts at the current tick."),
+                     mouse.button("3 Individuals report", Event::Character('3')),
+                     paragraph(error) | color(Color::RedLight), filler(), mouse.button("Esc Cancel", Event::Escape)});
+    });
+    std::future<std::optional<SavedReport>> benchmarkResult;
+    std::jthread benchmarkWorker;
+    auto running = Renderer([&] {
+        const bool cancelling = benchmarkWorker.get_stop_token().stop_requested();
+        return vbox({text(cancelling ? " Cancelling benchmark " : " Running benchmark ") | bold, separator(),
+                     filler(), mouse.button("Esc Cancel", Event::Escape)});
+    });
+    auto startBenchmark = [&](bool compareAll) {
+        std::packaged_task task([config = live->config(), compareAll](std::stop_token stop) {
+            const auto selected = std::span(&config.algorithm, 1);
+            return generateBenchmark(config, compareAll ? std::span<const Algorithm>(algorithms) : selected, stop);
+        });
+        benchmarkResult = task.get_future();
+        benchmarkWorker = std::jthread([&app, task = std::move(task)](std::stop_token stop) mutable {
+            task(stop);
+            app.PostEvent(Event::Custom);
+        });
+        editing = Prompt::running;
+        show(running);
+    };
     shortcuts = CatchEvent(host, [&](Event event) {
+        if (editing == Prompt::running) {
+            if (event == Event::Escape) benchmarkWorker.request_stop();
+            else if (event == Event::q || event == Event::Q) app.Exit();
+            else if (event == Event::Custom &&
+                     benchmarkResult.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                const bool cancelled = benchmarkWorker.get_stop_token().stop_requested();
+                benchmarkWorker.join();
+                editing = Prompt::none;
+                try {
+                    if (auto report = benchmarkResult.get(); report && !cancelled)
+                        current = reportView(std::move(*report), mouse);
+                    show(current);
+                } catch (const std::exception& e) {
+                    error = displayText(e.what());
+                    editing = Prompt::generate;
+                    show(generate);
+                }
+            }
+            return true;
+        }
+        if (editing == Prompt::generate) {
+            if (event == Event::q || event == Event::Q) {
+                app.Exit();
+                return true;
+            }
+            try {
+                if (event == Event::Character('1') || event == Event::Character('2'))
+                    startBenchmark(event == Event::Character('1'));
+                else if (event == Event::Character('3') || event == Event::Escape) {
+                    if (event != Event::Escape) current = live->individualsReport();
+                    editing = Prompt::none;
+                    show(current);
+                }
+            } catch (const std::exception& e) {
+                error = displayText(e.what());
+            }
+            return true;
+        }
         if (editing != Prompt::none) {
             if (event == Event::Return) {
                 try {
@@ -289,6 +363,13 @@ void runApp(core::SimulationConfig config, std::optional<SavedReport> initialRep
             } else if (event != Event::Escape) return false;
             editing = Prompt::none;
             show(current);
+            return true;
+        }
+        if (current == live && (event == Event::g || event == Event::G)) {
+            live->pause();
+            editing = Prompt::generate;
+            error.clear();
+            show(generate);
             return true;
         }
         const bool setCount = current == live && (event == Event::b || event == Event::B);

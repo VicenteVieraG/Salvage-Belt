@@ -1,10 +1,14 @@
 #include "salvage-analytics/Views.hpp"
 #include "salvage-analytics/MouseControls.hpp"
 
+#include <ftxui/component/component.hpp>
+#include <ftxui/screen/terminal.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <format>
 #include <numeric>
+#include <optional>
 
 namespace salvage::analytics {
 namespace {
@@ -52,6 +56,15 @@ std::string coordinates(const core::Vec3& v) {
     return std::format("({:.2f}, {:.2f}, {:.2f})", v.x, v.y, v.z);
 }
 
+Element bodyDetails(const core::Body& body) {
+    return panel(std::format(" Body #{} · {} ", body.getId(), shape(body)), vbox({
+        field("Position", coordinates(body.getPosition())), field("Velocity", coordinates(body.getVelocity())),
+        field("Inverse mass", std::format("{:.3f}", body.getInverseMass())),
+        field("Restitution", std::format("{:.3f}", body.getMaterial().restitution)),
+        field("Friction", std::format("{:.3f}", body.getMaterial().friction))
+    }));
+}
+
 Element bodyList(std::span<const core::Body> bodies, std::size_t& selected, MouseControls& mouse) {
     const auto count = std::min<std::size_t>(bodies.size(), 10);
     const auto first = std::min(selected > count / 2 ? selected - count / 2 : 0, bodies.size() - count);
@@ -76,6 +89,98 @@ Element contactList(const core::Simulation& simulation, bool visible) {
     if (visiblePairs.size() < contacts.size()) rows.push_back(text(std::format("+{} more", contacts.size() - visiblePairs.size())));
     return vbox(std::move(rows));
 }
+
+class IndividualsView final : public ComponentBase {
+public:
+    IndividualsView(const core::Simulation& simulation, std::size_t selected, MouseControls& mouse)
+        : simulation_(simulation), selected_(selected), mouse_(mouse) {}
+
+    Element OnRender() override {
+        const auto size = Terminal::Size();
+        const auto title = text(" Individuals report ") | bold | inverted;
+        if (size.dimx < 44 || size.dimy < 20)
+            return vbox({title, paragraph("Resize to at least 44 columns and 20 rows."),
+                         mouse_.button("Esc Live", Event::Escape), mouse_.button("q Quit", Event::q)});
+
+        const auto bodies = simulation_.world().bodies;
+        const auto tick = simulation_.metrics().stepIndex;
+        Elements page{hflow({title, text(std::format(" Tick {}   {} {}", tick, bodies.size(),
+                                                     bodies.size() == 1 ? "body" : "bodies"))}), separator()};
+        if (bodies.empty()) {
+            page.push_back(text(" No bodies in this scene."));
+        } else {
+            updateContacts();
+            auto detail = vbox({bodyDetails(bodies[selected_]), panel(" Body contacts ", contacts(tick))});
+            auto report = size.dimx >= 68 ? hbox({bodyList(bodies, selected_, mouse_), detail | flex}) : detail;
+            page.push_back(mouse_.scrollable(std::move(report), [this](bool forward) { moveBody(forward); }));
+        }
+        page.push_back(filler());
+        page.push_back(separator());
+        Elements navigation;
+        if (bodies.size() > 1) {
+            navigation.push_back(mouse_.button("[ Prev body", Event::Character('[')));
+            navigation.push_back(mouse_.button("] Next body", Event::Character(']')));
+        }
+        if (contacts_.size() > contactsPerPage) {
+            navigation.push_back(mouse_.button("← Prev contacts", Event::ArrowLeft));
+            navigation.push_back(mouse_.button("→ Next contacts", Event::ArrowRight));
+        }
+        navigation.push_back(mouse_.button("Esc Live", Event::Escape));
+        navigation.push_back(mouse_.button("q Quit", Event::q));
+        page.push_back(hflow(std::move(navigation)));
+        return vbox(std::move(page));
+    }
+
+    bool OnEvent(Event event) override {
+        if (event == Event::Character('[') || event == Event::ArrowUp) moveBody(false);
+        else if (event == Event::Character(']') || event == Event::ArrowDown) moveBody(true);
+        else if (event == Event::ArrowLeft) {
+            if (contactOffset_ >= contactsPerPage) contactOffset_ -= contactsPerPage;
+        } else if (event == Event::ArrowRight) {
+            if (contacts_.size() - contactOffset_ > contactsPerPage) contactOffset_ += contactsPerPage;
+        } else return false;
+        return true;
+    }
+
+private:
+    void moveBody(bool forward) {
+        const auto count = simulation_.world().bodies.size();
+        if (count == 0) return;
+        if (forward) selected_ = (selected_ + 1) % count;
+        else selected_ = selected_ ? selected_ - 1 : count - 1;
+    }
+
+    void updateContacts() {
+        if (contactBody_ == selected_) return;
+        contacts_.clear();
+        for (const auto& contact : simulation_.contacts()) {
+            if (contact.first == selected_ || contact.second == selected_) contacts_.push_back(contact);
+        }
+        contactBody_ = selected_;
+        contactOffset_ = 0;
+    }
+
+    Element contacts(std::uint64_t tick) const {
+        if (tick == 0) return text("Waiting for the first tick.") | dim;
+        if (contacts_.empty()) return text("No contacts for this body.") | dim;
+        const auto end = contactOffset_ + std::min(contactsPerPage, contacts_.size() - contactOffset_);
+        Elements rows{text(std::format("{}–{} of {} contacts", contactOffset_ + 1, end, contacts_.size()))};
+        for (auto i = contactOffset_; i < end; ++i) {
+            const auto& contact = contacts_[i];
+            const auto other = contact.first == selected_ ? contact.second : contact.first;
+            rows.push_back(text(std::format("Body #{}   depth {:.4f}", other, contact.penetration)));
+        }
+        return vbox(std::move(rows));
+    }
+
+    static constexpr std::size_t contactsPerPage = 3;
+    const core::Simulation& simulation_;
+    std::size_t selected_;
+    MouseControls& mouse_;
+    std::optional<std::size_t> contactBody_;
+    std::vector<core::Contact> contacts_;
+    std::size_t contactOffset_{};
+};
 }
 
 ftxui::Element metricsView(const core::SimulationMetrics& m, const std::deque<core::Duration>& history,
@@ -112,19 +217,16 @@ ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t& se
                              MouseControls& mouse) {
     const auto bodies = simulation.world().bodies;
     if (bodies.empty()) return text(" No bodies in this scene.");
-    const auto& body = bodies[selected];
-    auto details = panel(std::format(" Body #{} · {} ", body.getId(), shape(body)), vbox({
-        field("Position", coordinates(body.getPosition())), field("Velocity", coordinates(body.getVelocity())),
-        field("Inverse mass", std::format("{:.3f}", body.getInverseMass())),
-        field("Restitution", std::format("{:.3f}", body.getMaterial().restitution)),
-        field("Friction", std::format("{:.3f}", body.getMaterial().friction))
-    }));
-    auto inspector = vbox({details, panel(" Contacts this tick ", contactList(simulation, showContacts))});
+    auto inspector = vbox({bodyDetails(bodies[selected]), panel(" Contacts this tick ", contactList(simulation, showContacts))});
     if (wide) inspector = hbox({bodyList(bodies, selected, mouse), inspector | flex});
     return mouse.scrollable(inspector, [&selected, count = bodies.size()](bool forward) {
         if (forward && selected + 1 < count) ++selected;
         else if (!forward && selected > 0) --selected;
     });
+}
+
+ftxui::Component individualsView(const core::Simulation& simulation, std::size_t selected, MouseControls& mouse) {
+    return ftxui::Make<IndividualsView>(simulation, selected, mouse);
 }
 
 }

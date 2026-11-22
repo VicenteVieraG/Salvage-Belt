@@ -59,10 +59,17 @@ In a mouse-enabled terminal, click a tab or an underlined control to use it. In 
 | Tab | Switch between Metrics and Inspector |
 | `[` / `]` | Inspect the previous or next body |
 | `c` | Show or hide contact pairs and penetration depths in the Inspector |
+| `g` | Pause and generate a benchmark or individuals report |
 | `o` | Pause and open a saved benchmark by file path |
 | `q` / Esc | Quit |
 
 Set `SALVAGE_BUILD_ANALYTICS=OFF` to omit the dashboard and FTXUI. When embedding the project, enable `SALVAGE_BUILD_ANALYTICS`, link `salvage::analytics`, and call `salvage::analytics::runDashboard(config)` from `salvage-analytics/Dashboard.hpp` to inspect a custom simulation.
+
+### Generating reports from the dashboard
+
+Press `g` or click **Generate report**. Choose **Compare all algorithms** or **Benchmark current algorithm** to run the configured initial scene with the current worker count. Each algorithm runs three repetitions with 10 warmup ticks and 60 measured ticks. The report opens in the benchmark viewer when the run finishes. These runs skip the CLI's separate correctness preflight. Press Esc to cancel between ticks or return to the paused dashboard from the results.
+
+Choose **Individuals report** to inspect the body positions, velocities, material properties, and contacts at the current tick. Use `[` and `]`, Up/Down, or the mouse to select a body. Use Left/Right to page through its contacts. Both report options keep the live simulation at its current tick.
 
 ### Opening a saved benchmark
 
