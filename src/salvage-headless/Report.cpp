@@ -1,6 +1,6 @@
 #include "salvage-headless/Benchmark.hpp"
 #include "salvage-headless/BuildInfo.hpp"
-#include "../benchmark/Statistics.hpp"
+#include "benchmark/Statistics.hpp"
 
 #include <csv.hpp>
 #include <nlohmann/json.hpp>

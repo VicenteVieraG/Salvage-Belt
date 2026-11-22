@@ -1,5 +1,5 @@
-#include "ReportView.hpp"
-#include "MouseControls.hpp"
+#include "salvage-analytics/ReportView.hpp"
+#include "salvage-analytics/MouseControls.hpp"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>

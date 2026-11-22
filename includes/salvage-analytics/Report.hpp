@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../benchmark/Statistics.hpp"
+#include "benchmark/Statistics.hpp"
 
 #include <cstdint>
 #include <filesystem>

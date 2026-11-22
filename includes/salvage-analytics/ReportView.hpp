@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Report.hpp"
+#include "salvage-analytics/Report.hpp"
 #include <ftxui/component/component_base.hpp>
 
 namespace salvage::analytics {

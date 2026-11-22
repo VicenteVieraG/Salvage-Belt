@@ -1,8 +1,8 @@
 #include "salvage-analytics/Dashboard.hpp"
-#include "BodyCount.hpp"
-#include "MouseControls.hpp"
-#include "ReportView.hpp"
-#include "Views.hpp"
+#include "salvage-analytics/BodyCount.hpp"
+#include "salvage-analytics/MouseControls.hpp"
+#include "salvage-analytics/ReportView.hpp"
+#include "salvage-analytics/Views.hpp"
 
 #include <ftxui/component/app.hpp>
 #include <ftxui/component/component.hpp>

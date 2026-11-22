@@ -1,5 +1,5 @@
 #include "salvage-analytics/Dashboard.hpp"
-#include "BodyCount.hpp"
+#include "salvage-analytics/BodyCount.hpp"
 
 #include <config.hpp>
 #include <exception>

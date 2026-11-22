@@ -1,5 +1,5 @@
-#include "Views.hpp"
-#include "MouseControls.hpp"
+#include "salvage-analytics/Views.hpp"
+#include "salvage-analytics/MouseControls.hpp"
 
 #include <algorithm>
 #include <cmath>

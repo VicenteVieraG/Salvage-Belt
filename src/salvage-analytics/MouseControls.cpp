@@ -1,4 +1,4 @@
-#include "MouseControls.hpp"
+#include "salvage-analytics/MouseControls.hpp"
 #include <algorithm>
 
 namespace salvage::analytics {
