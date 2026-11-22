@@ -42,6 +42,8 @@ public:
 
     const SimulationConfig& config() const noexcept;
     WorldView world() const noexcept;
+    /// Contacts detected during the latest tick, before response. Borrow until the next step or reset.
+    std::span<const Contact> contacts() const noexcept;
     SimulationSnapshot snapshot() const;
     SimulationMetrics metrics() const noexcept;
     BroadPhaseDebug debug() const; ///< Copy the most recently indexed, pre-response geometry on demand.

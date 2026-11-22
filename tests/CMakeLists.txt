@@ -27,6 +27,25 @@ if(BUILD_TESTS)
     endif()
 endif()
 
+if(BUILD_TESTS AND TARGET salvage-analytics)
+    add_dependencies(tests salvage-analytics)
+    add_test(NAME salvage-analytics.help COMMAND salvage-analytics --help)
+    if(UNIX)
+        find_package(Python3 QUIET COMPONENTS Interpreter)
+        if(Python3_Interpreter_FOUND)
+            add_test(NAME salvage-analytics.terminal COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/AnalyticsTerminal.py" "$<TARGET_FILE:salvage-analytics>")
+            set_tests_properties(salvage-analytics.terminal PROPERTIES TIMEOUT 20)
+            if(TARGET salvage-headless)
+                add_test(NAME salvage-analytics.reports COMMAND "${Python3_EXECUTABLE}" -B
+                    "${CMAKE_CURRENT_SOURCE_DIR}/AnalyticsReports.py" "$<TARGET_FILE:salvage-analytics>"
+                    "$<TARGET_FILE:salvage-headless>" "${SALVAGE_ENABLE_THREADS}")
+                set_tests_properties(salvage-analytics.reports PROPERTIES TIMEOUT 45)
+            endif()
+        endif()
+    endif()
+endif()
+
 if(BUILD_TESTS AND TARGET salvage-headless)
     add_dependencies(tests salvage-headless)
     foreach(mode simulation replay)

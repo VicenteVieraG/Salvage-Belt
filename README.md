@@ -1,11 +1,11 @@
 # Salvage Belt
 
-Salvage Belt is a C++26 collision simulation library and benchmark CLI for comparing 3D collision algorithms on reproducible scenes of spheres and axis-aligned boxes.
+Salvage Belt is a C++26 collision simulation library with a benchmark CLI and a live terminal dashboard for comparing 3D collision algorithms on reproducible scenes of spheres and axis-aligned boxes.
 
 ## Build and run
 
 ```sh
-git submodule update --init external/cli11 external/json external/csv
+git submodule update --init external/cli11 external/json external/csv external/ftxui
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --target salvage-headless
 ./build/bin/salvage-headless --help
@@ -27,6 +27,48 @@ cmake -S . -B build -DBUILD_TESTS=ON
 cmake --build build --target tests
 ctest --test-dir build --output-on-failure
 ```
+
+## Live terminal dashboard
+
+To build just the dashboard, initialize its terminal and report-reading dependencies and disable the headless module.
+
+```sh
+git submodule update --init external/ftxui external/json external/csv
+cmake -S . -B build-tui -DSALVAGE_BUILD_HEADLESS=OFF
+cmake --build build-tui --target salvage-analytics
+./build-tui/bin/salvage-analytics
+```
+
+The dashboard opens paused on the core's default 128-body field. Press `n` to measure one tick. The Metrics view shows stage timings, pair and contact counts, and estimated buffer sizes. The step-time graph keeps the latest 120 ticks, with the newest at the right and the vertical scale set by the peak. At tick zero, dashes mark measurements that need a completed tick.
+
+| Key | Action |
+| --- | --- |
+| Space | Play or pause |
+| `n` | Pause and advance one fixed tick |
+| `r` | Restart the current scene at tick zero |
+| `a` | Restart the same scene with the next broad-phase algorithm |
+| `w` | Restart with the next worker count (threaded builds) |
+| Tab | Switch between Metrics and Inspector |
+| `[` / `]` | Inspect the previous or next body |
+| `c` | Show or hide contact pairs and penetration depths in the Inspector |
+| `o` | Pause and open a saved benchmark by file path |
+| `q` / Esc | Quit |
+
+Set `SALVAGE_BUILD_ANALYTICS=OFF` to omit the dashboard and FTXUI. When embedding the project, enable `SALVAGE_BUILD_ANALYTICS`, link `salvage::analytics`, and call `salvage::analytics::runDashboard(config)` from `salvage-analytics/Dashboard.hpp` to inspect a custom simulation.
+
+### Opening a saved benchmark
+
+Press `o` in the TUI, enter the path to a `salvage-headless` JSON or CSV export, and press Enter. You can also open a report directly from the terminal.
+
+```sh
+./build/bin/salvage-headless --algorithm all --workers 1,4 --json results.json --csv ticks.csv
+./build/bin/salvage-analytics results.json
+./build/bin/salvage-analytics --report ticks.csv
+```
+
+Each case compares algorithms and worker counts on the same scene. The table shows median and p95 microseconds per tick across repetition means. Simulation reports use total step time. Replay reports use detection time. The viewer reads the saved summaries from JSON and reconstructs them from the measured ticks in CSV. Speedup uses validated one-worker brute force in the same case. A dash marks an unavailable result. Failed variants show the saved error.
+
+Use Left/Right to switch cases and Up/Down to select a variant. Enter opens its measurements. In that view, Left/Right selects a repetition and Up/Down selects a measured tick. Esc returns to the comparison, then to the paused live dashboard. Press `q` to quit from either view.
 
 ## Running comparisons
 

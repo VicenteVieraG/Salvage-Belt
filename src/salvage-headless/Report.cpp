@@ -1,5 +1,6 @@
 #include "salvage-headless/Benchmark.hpp"
 #include "salvage-headless/BuildInfo.hpp"
+#include "../benchmark/Statistics.hpp"
 
 #include <csv.hpp>
 #include <nlohmann/json.hpp>
@@ -104,25 +105,13 @@ double meanTime(const Trial& trial, bool detection) {
     return sum / static_cast<double>(trial.samples.size());
 }
 
-// Independent observations are repetition means. Quantiles interpolate adjacent ordered observations.
-struct Stats {
-    double mean, median, p95, stddev;
-};
+using benchmark::Stats;
 
 Stats statistics(const Variant& variant, bool detection) {
     std::vector<double> values;
     values.reserve(variant.trials.size());
     for (const auto& trial : variant.trials) values.push_back(meanTime(trial, detection));
-    std::ranges::sort(values);
-    auto quantile = [&](double q) {
-        const double index = q * static_cast<double>(values.size() - 1);
-        const auto low = static_cast<std::size_t>(index);
-        return std::lerp(values[low], values[static_cast<std::size_t>(std::ceil(index))], index - static_cast<double>(low));
-    };
-    const double mean = std::accumulate(values.begin(), values.end(), 0.0) / static_cast<double>(values.size());
-    double squares{};
-    for (double v : values) squares += (v - mean) * (v - mean);
-    return {mean, quantile(0.5), quantile(0.95), std::sqrt(squares / static_cast<double>(values.size()))};
+    return benchmark::summarize(std::move(values));
 }
 
 Json statsRecord(const Stats& s) {

@@ -86,6 +86,7 @@ void Simulation::step(std::span<const BodyInput> inputs) {
 
 const SimulationConfig& Simulation::config() const noexcept { return run_->settings; }
 WorldView Simulation::world() const noexcept { return run_->world.view(); }
+std::span<const Contact> Simulation::contacts() const noexcept { return run_->detection.contacts; }
 SimulationMetrics Simulation::metrics() const noexcept { return run_->metrics; }
 BroadPhaseDebug Simulation::debug() const { return run_->strategy->debug(); }
 
