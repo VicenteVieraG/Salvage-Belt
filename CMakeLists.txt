@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.30)
 
 # Project name, version and languages
-project(Salvage_Belt VERSION 0.5.3 LANGUAGES C CXX)
+project(Salvage_Belt VERSION 0.5.4 LANGUAGES C CXX)
 
 # Configure build options
 set(CMAKE_CXX_STANDARD 26)

@@ -1,4 +1,5 @@
 #include "ReportView.hpp"
+#include "MouseControls.hpp"
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
@@ -28,13 +29,13 @@ bool move(std::size_t& index, std::size_t count, bool forward) {
 
 class ReportView final : public ComponentBase {
 public:
-    explicit ReportView(SavedReport report) : report_(std::move(report)) {}
+    ReportView(SavedReport report, MouseControls& mouse) : report_(std::move(report)), mouse_(mouse) {}
 
     Element OnRender() override {
         const auto size = Terminal::Size();
         if (size.dimx < 44 || size.dimy < 20)
             return vbox({text("Saved benchmark") | bold, paragraph("Resize to at least 44 columns and 20 rows."),
-                         text("q  Quit")});
+                         mouse_.button("q Quit", Event::q)});
         const auto& p = report_.protocol;
         const auto& scene = currentCase().scene;
         Elements page{
@@ -44,20 +45,26 @@ public:
             hflow({text(p.replay ? " Replay · detection time   " : " Simulation · total step time   "),
                    text(std::format("{} warmup   {} ticks × {} reps", p.warmup, p.steps, p.repetitions))}),
             separator(),
-            detail_ ? details() : comparison(size.dimx >= 76, std::max(1, size.dimy - 14)),
-            filler(), separator()
+            mouse_.scrollable(vbox({detail_ ? details() : comparison(size.dimx >= 76, std::max(1, size.dimy - 14)),
+                                    filler()}) | flex, [this](bool forward) { moveVertical(forward); }),
+            separator()
         };
-        if (detail_) {
-            page.push_back(hflow({text(" ↑/↓ Tick   "), text("←/→ Repetition   "), text("Esc Back")}));
-        } else {
-            page.push_back(hflow({text(" ↑/↓ Variant   "), text("←/→ Case   "), text("Enter Details   "), text("Esc Live")}));
-        }
-        page.push_back(text(" o Open report   q Quit"));
+        Elements navigation{
+            hbox({text(detail_ ? " Tick" : " Variant"),
+                  mouse_.button("↑", Event::ArrowUp), mouse_.button("↓", Event::ArrowDown)}),
+            hbox({text(detail_ ? " Repetition" : " Case"),
+                  mouse_.button("←", Event::ArrowLeft), mouse_.button("→", Event::ArrowRight)})
+        };
+        if (!detail_) navigation.push_back(mouse_.button("Enter Details", Event::Return));
+        navigation.push_back(mouse_.button(detail_ ? "Esc Back" : "Esc Live", Event::Escape));
+        page.push_back(hflow(std::move(navigation)));
+        page.push_back(hbox({mouse_.button("o Open report", Event::o), mouse_.button("q Quit", Event::q)}));
         return vbox(std::move(page));
     }
 
     bool OnEvent(Event event) override {
         if (event == Event::Return || (detail_ && event == Event::Escape)) {
+            mouse_.clear();
             detail_ = !detail_;
             run_ = tick_ = 0;
             return true;
@@ -66,23 +73,27 @@ public:
         const bool vertical = event == Event::ArrowUp || event == Event::ArrowDown;
         if (!horizontal && !vertical) return false;
         const bool forward = event == Event::ArrowRight || event == Event::ArrowDown;
-        if (!detail_ && horizontal) {
-            if (move(case_, report_.cases.size(), forward)) variant_ = 0;
+        if (vertical) {
+            moveVertical(forward);
         } else if (!detail_) {
-            move(variant_, currentCase().variants.size(), forward);
-        } else if (horizontal) {
-            if (move(run_, variant().runs.size(), forward)) tick_ = 0;
-        } else if (!variant().runs.empty()) {
-            move(tick_, variant().runs[run_].samples.size(), forward);
-        }
+            if (move(case_, report_.cases.size(), forward)) {
+                mouse_.clear();
+                variant_ = 0;
+            }
+        } else if (move(run_, variant().runs.size(), forward)) tick_ = 0;
         return true;
     }
 
 private:
+    void moveVertical(bool forward) {
+        if (!detail_) move(variant_, currentCase().variants.size(), forward);
+        else if (!variant().runs.empty()) move(tick_, variant().runs[run_].samples.size(), forward);
+    }
+
     const ReportCase& currentCase() const { return report_.cases[case_]; }
     const ReportVariant& variant() const { return currentCase().variants[variant_]; }
 
-    Element comparison(bool wide, std::size_t capacity) const {
+    Element comparison(bool wide, std::size_t capacity) {
         const auto& variants = currentCase().variants;
         const auto count = std::min(capacity, variants.size());
         const auto first = std::min(variant_ > count / 2 ? variant_ - count / 2 : 0, variants.size() - count);
@@ -94,7 +105,7 @@ private:
                 v.timing ? micros(v.timing->median) : "—", v.timing ? micros(v.timing->p95) : "—",
                 v.speedupVsBrute ? std::format("{:.2f}×", *v.speedupVsBrute) : "—",
                 v.status == "failed" ? "failed" : displayText(v.validation)));
-            rows.push_back(i == variant_ ? row | inverted : row);
+            rows.push_back(mouse_.clickable(i == variant_ ? row | inverted : row, [this, i] { variant_ = i; }));
         }
         rows.push_back(separator());
         rows.push_back(hflow({text(std::format(" Variant {}/{}   ", variant_ + 1, variants.size())),
@@ -139,13 +150,14 @@ private:
     }
 
     SavedReport report_;
+    MouseControls& mouse_;
     std::size_t case_{}, variant_{}, run_{}, tick_{};
     bool detail_{};
 };
 }
 
-ftxui::Component reportView(SavedReport report) {
-    return ftxui::Make<ReportView>(std::move(report));
+ftxui::Component reportView(SavedReport report, MouseControls& mouse) {
+    return ftxui::Make<ReportView>(std::move(report), mouse);
 }
 
 }

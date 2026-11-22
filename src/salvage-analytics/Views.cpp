@@ -1,4 +1,5 @@
 #include "Views.hpp"
+#include "MouseControls.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -51,13 +52,14 @@ std::string coordinates(const core::Vec3& v) {
     return std::format("({:.2f}, {:.2f}, {:.2f})", v.x, v.y, v.z);
 }
 
-Element bodyList(std::span<const core::Body> bodies, std::size_t selected) {
+Element bodyList(std::span<const core::Body> bodies, std::size_t& selected, MouseControls& mouse) {
     const auto count = std::min<std::size_t>(bodies.size(), 10);
     const auto first = std::min(selected > count / 2 ? selected - count / 2 : 0, bodies.size() - count);
     Elements rows;
     for (const auto& body : bodies.subspan(first, count)) {
         auto row = text(std::format(" #{:<4} {}", body.getId(), shape(body)));
-        rows.push_back(body.getId() == selected ? row | inverted : row);
+        rows.push_back(mouse.clickable(body.getId() == selected ? row | inverted : row,
+                                       [&selected, id = body.getId()] { selected = id; }));
     }
     return panel(" Bodies ", vbox(std::move(rows))) | size(WIDTH, EQUAL, 18);
 }
@@ -80,14 +82,14 @@ ftxui::Element metricsView(const core::SimulationMetrics& m, const std::deque<co
                            bool wide, bool showGraph) {
     const auto& d = m.detection;
     auto timeRow = [&](std::string label, core::Duration value) {
-        const auto reading = m.stepIndex ? std::format("{:.1f}", microseconds(value)) : "—";
+        const auto reading = history.empty() ? "—" : std::format("{:.1f}", microseconds(value));
         if (!wide) return field(std::move(label), reading);
-        const auto share = m.totalStep.count() > 0 ? static_cast<float>(value / m.totalStep) : 0.0F;
+        const auto share = !history.empty() && m.totalStep.count() > 0 ? static_cast<float>(value / m.totalStep) : 0.0F;
         return hbox({text(std::move(label)) | size(WIDTH, EQUAL, 14), gauge(share) | flex | color(Color::Cyan),
                      text(std::format("{:>9}", reading))});
     };
     auto countRow = [&](std::string label, auto count) {
-        return field(std::move(label), m.stepIndex ? std::to_string(count) : "—");
+        return field(std::move(label), history.empty() ? "—" : std::to_string(count));
     };
     auto timings = panel(" Tick timing (µs) ", vbox({
         timeRow("Total step", m.totalStep), timeRow("Integration", m.integration), timeRow("Detection", d.total),
@@ -98,7 +100,7 @@ ftxui::Element metricsView(const core::SimulationMetrics& m, const std::deque<co
         countRow("Examined", d.pairsExamined), countRow("Raw candidates", d.rawCandidates),
         countRow("Unique pairs", d.uniqueCandidates), countRow("Contacts", d.contacts),
         separator(), countRow("Index (B)", d.indexBytes), countRow("Pair buffer (B)", d.pairBufferBytes),
-        field("Peak (B)", std::to_string(m.peakCollisionBufferBytes))
+        field("Run peak (B)", std::to_string(m.peakCollisionBufferBytes))
     }));
     return vbox({hbox({timings | flex, work | flex}),
                  hflow({text(std::format(" Generation {:.1f} µs   ", microseconds(m.generation))),
@@ -106,7 +108,8 @@ ftxui::Element metricsView(const core::SimulationMetrics& m, const std::deque<co
                  stepHistory(history, showGraph)});
 }
 
-ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t selected, bool showContacts, bool wide) {
+ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t& selected, bool showContacts, bool wide,
+                             MouseControls& mouse) {
     const auto bodies = simulation.world().bodies;
     if (bodies.empty()) return text(" No bodies in this scene.");
     const auto& body = bodies[selected];
@@ -117,8 +120,11 @@ ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t sel
         field("Friction", std::format("{:.3f}", body.getMaterial().friction))
     }));
     auto inspector = vbox({details, panel(" Contacts this tick ", contactList(simulation, showContacts))});
-    if (!wide) return inspector;
-    return hbox({bodyList(bodies, selected), inspector | flex});
+    if (wide) inspector = hbox({bodyList(bodies, selected, mouse), inspector | flex});
+    return mouse.scrollable(inspector, [&selected, count = bodies.size()](bool forward) {
+        if (forward && selected + 1 < count) ++selected;
+        else if (!forward && selected > 0) --selected;
+    });
 }
 
 }

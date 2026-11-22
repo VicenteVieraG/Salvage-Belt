@@ -2,7 +2,7 @@ if(NOT TARGET ftxui::ftxui)
     add_subdirectory("${PROJECT_SOURCE_DIR}/external/ftxui" "${PROJECT_BINARY_DIR}/external/ftxui" EXCLUDE_FROM_ALL SYSTEM)
 endif()
 
-add_library(salvage-analytics-lib STATIC Dashboard.cpp Report.cpp ReportView.cpp Views.cpp)
+add_library(salvage-analytics-lib STATIC Dashboard.cpp MouseControls.cpp Report.cpp ReportView.cpp Views.cpp)
 add_library(salvage::analytics ALIAS salvage-analytics-lib)
 target_sources(salvage-analytics-lib PUBLIC
     FILE_SET HEADERS

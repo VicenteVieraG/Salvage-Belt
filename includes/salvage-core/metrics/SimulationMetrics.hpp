@@ -17,7 +17,7 @@ struct DetectionMetrics {
 
 struct SimulationMetrics {
     std::uint64_t stepIndex{};
-    Duration generation{}, initialization{}; ///< Cold-start costs, carried forward for the run.
+    Duration generation{}, initialization{}; ///< Scene generation and most recent strategy setup costs.
     Duration integration{}, resolution{}, totalStep{};
     DetectionMetrics detection{};
     std::size_t peakCollisionBufferBytes{}; ///< Run maximum sampled index + pair buffer capacity.

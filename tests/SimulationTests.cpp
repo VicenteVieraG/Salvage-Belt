@@ -143,6 +143,47 @@ TEST_CASE("One elastic tick conserves momentum and energy and publishes independ
     sameState(simulation.snapshot(), initial);
 }
 
+TEST_CASE("Switching algorithms indexes the current bodies and continues from the same tick") {
+    auto config = collisionCourse();
+    config.workers = workers;
+    Simulation simulation(config);
+    Simulation reference(config);
+    reference.step();
+    simulation.step();
+    const auto frame = simulation.snapshot();
+    const auto before = simulation.metrics();
+    const auto* storage = simulation.world().bodies.data();
+    REQUIRE(frame.contacts.size() == 1);
+
+    simulation.setAlgorithm(Algorithm::sweepAndPrune);
+    REQUIRE(simulation.config().algorithm == Algorithm::sweepAndPrune);
+    REQUIRE(simulation.config().workers == workers);
+    REQUIRE(simulation.world().bodies.data() == storage);
+    REQUIRE(simulation.metrics().generation == before.generation);
+    REQUIRE(simulation.metrics().totalStep == before.totalStep);
+    sameState(simulation.snapshot(), frame);
+    const auto intervals = simulation.debug().intervals;
+    REQUIRE(intervals.size() == frame.bodies.size());
+    for (const auto& interval : intervals) {
+        const auto& bounds = frame.bodies.at(interval.body).aabb();
+        REQUIRE(interval.min == bounds.min.x);
+        REQUIRE(interval.max == bounds.max.x);
+    }
+
+    const auto setup = simulation.metrics().initialization;
+    simulation.setAlgorithm(Algorithm::sweepAndPrune);
+    REQUIRE_THROWS_AS(simulation.setAlgorithm(static_cast<Algorithm>(-1)), std::invalid_argument);
+    REQUIRE(simulation.metrics().initialization == setup);
+    REQUIRE(simulation.config().algorithm == Algorithm::sweepAndPrune);
+    sameState(simulation.snapshot(), frame);
+    for (auto algorithm : {Algorithm::sweepAndPrune, Algorithm::kdTree, Algorithm::bruteForce}) {
+        simulation.setAlgorithm(algorithm);
+        reference.step();
+        simulation.step();
+        sameState(simulation.snapshot(), reference.snapshot());
+    }
+}
+
 TEST_CASE("Detection-only ticks integrate and report contacts without applying impulses or corrections") {
     auto config = collisionCourse();
     config.response = Response::detectionOnly;

@@ -5,6 +5,7 @@
 
 namespace salvage::analytics {
 
-ftxui::Component reportView(SavedReport report);
+class MouseControls;
+ftxui::Component reportView(SavedReport report, MouseControls& mouse);
 
 }

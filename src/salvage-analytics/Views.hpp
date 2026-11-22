@@ -7,10 +7,12 @@
 
 namespace salvage::analytics {
 
+class MouseControls;
 inline constexpr std::size_t historyLimit = 120;
 
 ftxui::Element metricsView(const core::SimulationMetrics& metrics, const std::deque<core::Duration>& history,
                            bool wide, bool showGraph);
-ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t selected, bool showContacts, bool wide);
+ftxui::Element inspectorView(const core::Simulation& simulation, std::size_t& selected, bool showContacts, bool wide,
+                             MouseControls& mouse);
 
 }

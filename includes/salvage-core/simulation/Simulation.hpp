@@ -39,6 +39,9 @@ public:
     void reset(); ///< Cold restart with the same settings, seed and strategy.
     void reset(SimulationConfig config); ///< A failed restart preserves the current run.
     void restartWith(Algorithm algorithm, std::size_t workers);
+    /// Build the selected index on the current bodies for subsequent ticks. The last completed
+    /// tick and its results stay available. A failed change preserves the active strategy.
+    void setAlgorithm(Algorithm algorithm);
 
     const SimulationConfig& config() const noexcept;
     WorldView world() const noexcept;
@@ -46,7 +49,7 @@ public:
     std::span<const Contact> contacts() const noexcept;
     SimulationSnapshot snapshot() const;
     SimulationMetrics metrics() const noexcept;
-    BroadPhaseDebug debug() const; ///< Copy the most recently indexed, pre-response geometry on demand.
+    BroadPhaseDebug debug() const; ///< Copy the active index geometry, as of its last setup or detection pass.
 
 private:
     struct Run;

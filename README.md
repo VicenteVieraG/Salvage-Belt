@@ -39,14 +39,22 @@ cmake --build build-tui --target salvage-analytics
 ./build-tui/bin/salvage-analytics
 ```
 
-The dashboard opens paused on the core's default 128-body field. Press `n` to measure one tick. The Metrics view shows stage timings, pair and contact counts, and estimated buffer sizes. The step-time graph keeps the latest 120 ticks, with the newest at the right and the vertical scale set by the peak. At tick zero, dashes mark measurements that need a completed tick.
+The dashboard opens paused with 128 bodies. To start with a different count, run `salvage-analytics --bodies 256`. During a session, press `b` or click the body count, enter a whole number, and press Enter. Changing the count generates a new field with the current seed and algorithm at tick zero. Half the bodies are boxes, rounded down, and the rest are spheres. Entering the current count keeps the scene.
+
+For a large stress test, use a Release build and launch `salvage-analytics --bodies 2000000`. Above the default 128 bodies, the launch option selects the k-d tree and expands the spawn volume in proportion to the population. Changing the count inside the dashboard keeps the selected algorithm. Brute force examines every pair, which reaches 499,999,500,000 checks per tick at one million bodies. The Metrics screen reads aggregate counters and retains up to 120 timing samples regardless of population. Available memory and the cost of the selected algorithm determine the practical run size.
+
+Click an algorithm name or press `1`, `2`, or `3` to switch while paused or playing. The bodies, tick, and playback state carry over. The Metrics view starts a fresh timing history for the selected algorithm. Press `n` to measure one tick. Dashes mark measurements awaiting the first tick with that algorithm. The graph shows the latest 120 tick times, and the memory peak covers the whole run.
+
+In a mouse-enabled terminal, click a tab or an underlined control to use it. In the Inspector, click a body in the list or use the mouse wheel over its details to select a nearby body.
 
 | Key | Action |
 | --- | --- |
 | Space | Play or pause |
 | `n` | Pause and advance one fixed tick |
 | `r` | Restart the current scene at tick zero |
-| `a` | Restart the same scene with the next broad-phase algorithm |
+| `1` / `2` / `3` | Select brute force, k-d tree, or sweep and prune on the current bodies |
+| `a` | Cycle to the next algorithm on the current bodies |
+| `b` | Pause and edit the body count |
 | `w` | Restart with the next worker count (threaded builds) |
 | Tab | Switch between Metrics and Inspector |
 | `[` / `]` | Inspect the previous or next body |
@@ -69,6 +77,8 @@ Press `o` in the TUI, enter the path to a `salvage-headless` JSON or CSV export,
 Each case compares algorithms and worker counts on the same scene. The table shows median and p95 microseconds per tick across repetition means. Simulation reports use total step time. Replay reports use detection time. The viewer reads the saved summaries from JSON and reconstructs them from the measured ticks in CSV. Speedup uses validated one-worker brute force in the same case. A dash marks an unavailable result. Failed variants show the saved error.
 
 Use Left/Right to switch cases and Up/Down to select a variant. Enter opens its measurements. In that view, Left/Right selects a repetition and Up/Down selects a measured tick. Esc returns to the comparison, then to the paused live dashboard. Press `q` to quit from either view.
+
+With the mouse, click a variant row and then **Details** to inspect it. The wheel moves through variants in the comparison and through ticks in the detail view. Click the arrows beside **Case** or **Repetition** to switch between them.
 
 ## Running comparisons
 
@@ -116,6 +126,7 @@ Simulation sim(config);
 for (int i = 0; i < 120; ++i) sim.step();
 auto frame = sim.snapshot();
 auto lastTick = sim.metrics();
+sim.setAlgorithm(Algorithm::bruteForce); // Continue from tick 120 with the current bodies.
 sim.restartWith(Algorithm::sweepAndPrune, 1); // Same initial bodies, tick zero.
 ```
 
@@ -126,6 +137,7 @@ sim.restartWith(Algorithm::sweepAndPrune, 1); // Same initial bodies, tick zero.
 | `SimulationSnapshot` | Owns completed body states and the sorted candidates and contacts that led to them. Contact geometry precedes positional correction. |
 | `SimulationMetrics` | Reports initialization and per-stage wall-clock seconds, examined pairs, raw and unique candidates, and confirmed contacts. Total step time includes worker dispatch, synchronization, and merging. Memory estimates use reserved index and pair element capacities. |
 | `Simulation::debug()` | Supplies the indexed k-d split regions or sweep intervals on demand. All extraction, formatting, and file I/O can happen outside the timed step. |
+| `setAlgorithm()` | Builds the selected index on the current bodies. The last tick's contacts and measurements stay available until the next step. Selecting the active algorithm keeps its index. |
 | `reset()` and `restartWith()` | Recreate the world and strategy and clear the tick, contacts, and step metrics. A failed restart preserves the active run. |
 
 Use `FieldSettings` for generated scenes or supply a `std::vector<Body>` in the configuration for a hand-built scenario. Generation uses one SplitMix64 stream per body, seeded from the run seed and its ID. Workers generate the initial proposals independently. Placement commits in ID order, retries conflicting positions from the same body's stream, and fails explicitly if the placement budget runs out. Spawn bounds constrain initial placement. The simulated space is open, and static box bodies can represent walls.

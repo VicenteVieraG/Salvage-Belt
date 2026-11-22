@@ -9,7 +9,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
-from AnalyticsTerminal import expect, terminal
+from AnalyticsTerminal import expect, full_frame, mouse_at, resize_frame, terminal
 
 
 def check_report(executable, path, case, mode):
@@ -52,6 +52,38 @@ def test_open_from_live(executable, path):
         expect(master, b"8128")
 
 
+def test_report_mouse(executable, path):
+    with terminal(executable) as master:
+        frame = full_frame(master)
+        mouse_at(master, frame, "o Open report")
+        expect(master, b"Open saved benchmark")
+        frame = resize_frame(master, 81)
+        os.write(master, os.fsencode(path))
+        mouse_at(master, frame, "Enter Open")
+        expect(master, b"Saved benchmark")
+        frame = resize_frame(master, 80)
+        mouse_at(master, frame, "→")
+        expect(master, b"aligned")
+        mouse_at(master, frame, "sweep-and-prune")
+        frame = resize_frame(master, 81)
+        selected = next(line for line in frame if "Variant " in line)
+        mouse_at(master, frame, "Algorithm", button=64)
+        frame = resize_frame(master, 80)
+        assert selected != next(line for line in frame if "Variant " in line)
+        mouse_at(master, frame, "Enter Details")
+        expect(master, b"Repetition 1/2")
+        frame = resize_frame(master, 81)
+        mouse_at(master, frame, "→")
+        mouse_at(master, frame, "Detection", button=65)
+        frame = resize_frame(master, 80)
+        assert any("Repetition 2/2   Tick 3" in line for line in frame)
+        mouse_at(master, frame, "Esc Back")
+        expect(master, b"Algorithm")
+        frame = resize_frame(master, 81)
+        mouse_at(master, frame, "Esc Live")
+        expect(master, b"Salvage Analytics")
+
+
 def main(executable, producer, threaded):
     with TemporaryDirectory() as directory:
         root = Path(directory)
@@ -67,6 +99,7 @@ def main(executable, producer, threaded):
             for path in (report, ticks):
                 check_report(executable, path, doc["cases"][0], mode)
         test_open_from_live(executable, ticks)
+        test_report_mouse(executable, ticks)
 
         # Preserve failed variants, including quoted errors in CSV and absent summaries.
         variant = doc["cases"][0]["variants"][0]

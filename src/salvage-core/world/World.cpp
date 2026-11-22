@@ -68,7 +68,14 @@ void generate(std::vector<Body>& bodies, const FieldSettings& field, std::uint64
         || width.y < diameter || width.z < diameter)
         throw std::invalid_argument("Spawn bounds must contain the largest collider");
 
-    bodies.resize(field.asteroids + field.debris);
+    const auto count = field.asteroids + field.debris;
+    // Each disjoint AABB occupies at least a cube of the minimum diameter.
+    // Reject impossible counts before allocating per-body storage.
+    const auto minSide = 2 * field.extent.min;
+    const auto capacityBound = std::ceil(width.x / minSide) * std::ceil(width.y / minSide) * std::ceil(width.z / minSide);
+    if (static_cast<double>(count) > capacityBound)
+        throw std::runtime_error("Too many bodies to fit in the spawn bounds");
+    bodies.resize(count);
     std::vector<Stream> streams(bodies.size());
     executor.parallelFor(bodies.size(), [&](std::size_t, std::size_t begin, std::size_t end) {
         for (auto i = begin; i < end; ++i) {

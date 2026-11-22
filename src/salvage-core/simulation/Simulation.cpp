@@ -31,11 +31,19 @@ struct Simulation::Run {
     explicit Run(SimulationConfig config)
         : settings(validated(std::move(config))), executor(settings.workers),
           world(generate()), next(world.view().bodies.size()) {
+        setAlgorithm(settings.algorithm);
+    }
+
+    void setAlgorithm(Algorithm algorithm) {
         const auto start = Clock::now();
-        strategy = makeBroadPhase(settings.algorithm);
-        strategy->update(world.view());
+        auto replacement = makeBroadPhase(algorithm);
+        replacement->update(world.view());
         metrics.initialization = Clock::now() - start;
-        metrics.peakCollisionBufferBytes = strategy->indexBytes();
+        const auto pairBytes = detection.candidates.capacity() * sizeof(CollisionPair);
+        const auto indexBytes = replacement->indexBytes() + (strategy ? strategy->indexBytes() : 0);
+        metrics.peakCollisionBufferBytes = std::max(metrics.peakCollisionBufferBytes, indexBytes + pairBytes);
+        strategy = std::move(replacement);
+        settings.algorithm = algorithm;
     }
 
     World generate() {
@@ -57,6 +65,10 @@ void Simulation::restartWith(Algorithm algorithm, std::size_t workers) {
     config.algorithm = algorithm;
     config.workers = workers;
     reset(std::move(config));
+}
+
+void Simulation::setAlgorithm(Algorithm algorithm) {
+    if (algorithm != run_->settings.algorithm) run_->setAlgorithm(algorithm);
 }
 
 void Simulation::step(std::span<const BodyInput> inputs) {
