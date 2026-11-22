@@ -1,5 +1,5 @@
-#include "Benchmark.hpp"
-#include "BuildInfo.hpp"
+#include "salvage-headless/Benchmark.hpp"
+#include "salvage-headless/BuildInfo.hpp"
 
 #include <csv.hpp>
 #include <nlohmann/json.hpp>

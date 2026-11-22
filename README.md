@@ -15,7 +15,9 @@ cmake --build build --target salvage-headless
 
 With no arguments, the CLI compares all three algorithms on the same 128-body uniform field with seed 1 and one worker. It runs 10 warmup ticks and 60 measured ticks three times per algorithm. It prints a summary to the terminal. Pass `--json -` or `--csv -` to pipe an export to another program. The summary then goes to standard error.
 
-The `salvage-core` target and the original one-tick `Salvage_Belt` example use only the standard library and native threads. Configure with `-DSALVAGE_BUILD_HEADLESS=OFF` to omit the benchmark executable, or `-DSALVAGE_ENABLE_THREADS=OFF` for a sequential build.
+The `salvage-headless` executable links to the `salvage::headless` library. Other CMake targets can link to `salvage::headless` and include `salvage-headless/Benchmark.hpp` to run benchmarks and write reports.
+
+The `salvage-core` target and the original one-tick `Salvage_Belt` example use only the standard library and native threads. Configure with `-DSALVAGE_BUILD_HEADLESS=OFF` to omit the benchmark library and executable, or `-DSALVAGE_ENABLE_THREADS=OFF` for a sequential build. When embedding Salvage Belt with `add_subdirectory`, set `SALVAGE_BUILD_HEADLESS=ON` to include the benchmark library.
 
 To run the regression suite, also initialize Catch2.
 

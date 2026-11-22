@@ -13,7 +13,10 @@ target_set_warnings(
     ${ENABLE_WARNINGS_AS_ERRORS}
 )
 
-option(SALVAGE_BUILD_HEADLESS "Build the salvage-headless benchmark CLI." ON)
 if(SALVAGE_BUILD_HEADLESS)
-    add_subdirectory(headless)
+    add_executable(salvage-headless headless_main.cpp)
+    target_link_libraries(salvage-headless PRIVATE salvage::headless)
+    target_set_warnings(salvage-headless ${ENABLE_WARNINGS_AS_ERRORS})
+    target_enable_clang_tidy(salvage-headless)
+    target_enable_sanitizers(salvage-headless)
 endif()

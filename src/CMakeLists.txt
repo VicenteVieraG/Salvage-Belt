@@ -21,3 +21,7 @@ endif()
 target_set_warnings(salvage-core ${ENABLE_WARNINGS_AS_ERRORS})
 target_enable_clang_tidy(salvage-core)
 target_enable_sanitizers(salvage-core)
+
+if(SALVAGE_BUILD_HEADLESS)
+    add_subdirectory(salvage-headless)
+endif()

@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.30)
 
 # Project name, version and languages
-project(Salvage_Belt VERSION 0.5.1 LANGUAGES C CXX)
+project(Salvage_Belt VERSION 0.5.2 LANGUAGES C CXX)
 
 # Configure build options
 set(CMAKE_CXX_STANDARD 26)
@@ -20,6 +20,7 @@ set(SANITIZER_PRESET "default" CACHE STRING "Default sanitizer preset used by sa
 set_property(CACHE SANITIZER_PRESET PROPERTY STRINGS default debug thread memory leak)
 
 # Options
+option(SALVAGE_BUILD_HEADLESS "Build the headless benchmark library and CLI." ${PROJECT_IS_TOP_LEVEL})
 option(SALVAGE_ENABLE_THREADS "Enable the persistent CPU worker pool." ON)
 option(BUILD_TESTS "Build Catch2 unit tests." OFF)
 option(BUILD_TESTS_WITH_MAIN "Build Catch2 Tests with custom main function." OFF)
