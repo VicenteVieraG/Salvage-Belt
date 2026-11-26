@@ -1,0 +1,51 @@
+{
+  "texture": "guidance.png",
+  "frameFormat": "x,y,width,height",
+  "pivotPixels": [
+    64,
+    64
+  ],
+  "directionZero": "up",
+  "frames": {
+    "direction": [
+      0,
+      0,
+      128,
+      128
+    ],
+    "wreck": [
+      128,
+      0,
+      128,
+      128
+    ],
+    "align": [
+      256,
+      0,
+      128,
+      128
+    ],
+    "aligned": [
+      0,
+      128,
+      128,
+      128
+    ],
+    "transfer": [
+      128,
+      128,
+      128,
+      128
+    ],
+    "complete": [
+      256,
+      128,
+      128,
+      128
+    ]
+  },
+  "telemetry": {
+    "range": "Distance to RescueAnchor in world units",
+    "closingSpeed": "Signed rate of approach in world units per second; positive when approaching"
+  }
+}

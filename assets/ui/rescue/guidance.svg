@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="384" height="256" viewBox="0 0 384 256" fill="none" stroke-linejoin="round">
+  <title>Salvage Belt rescue guidance atlas</title>
+  <desc>Six transparent 128-pixel frames. Each group's local pivot is (64, 64).</desc>
+  <style>
+    .amber { color: #ffca70; }
+    .cyan { color: #95f3fa; }
+    .mint { color: #a8ffc7; }
+    .ink { stroke: #09131f; stroke-width: 6; }
+    .signal { stroke: currentColor; stroke-width: 3; }
+    .accent { stroke: #f3f6ed; stroke-width: 3; }
+    .ink.heavy { stroke-width: 8; }
+    .signal.heavy { stroke-width: 5; }
+    .ink.fine { stroke-width: 5; }
+    .accent.fine { stroke-width: 2; }
+  </style>
+  <defs>
+    <path id="arrow" d="M44 73 L64 43 84 73 64 64 Z"/>
+    <path id="tail" d="M53 83 L64 78 75 83"/>
+    <path id="target" d="M29 24 H13 V40 M99 24 H115 V40 M29 104 H13 V88 M99 104 H115 V88"/>
+    <path id="ticks" d="M7 64 H13 M115 64 H121"/>
+    <path id="corners" d="M33 21 H21 V33 M95 21 H107 V33 M33 107 H21 V95 M95 107 H107 V95"/>
+    <g id="alignment-frame">
+      <use xlink:href="#corners" class="ink"/>
+      <use xlink:href="#corners" class="signal"/>
+    </g>
+    <path id="chevrons" d="M42 57 L49 64 42 71 M86 57 L79 64 86 71"/>
+    <path id="axis" d="M64 39 V48 M64 80 V89"/>
+    <path id="diamond" d="M64 48 L80 64 64 80 48 64 Z"/>
+    <path id="lock-check" d="M57 64 L62 69 71 59"/>
+    <path id="tray" d="M49 71 V79 H79 V71"/>
+    <path id="lower" d="M64 48 V69 M55 61 L64 70 73 61"/>
+    <path id="done" d="M49 63 L60 74 80 51"/>
+  </defs>
+  <g id="direction" class="amber">
+    <use xlink:href="#arrow" class="ink heavy"/>
+    <use xlink:href="#arrow" class="signal heavy"/>
+    <use xlink:href="#tail" class="ink"/>
+    <use xlink:href="#tail" class="accent"/>
+  </g>
+  <g id="wreck" transform="translate(128 0)" class="cyan">
+    <use xlink:href="#target" class="ink"/>
+    <use xlink:href="#target" class="signal"/>
+    <use xlink:href="#ticks" class="ink fine"/>
+    <use xlink:href="#ticks" class="accent fine"/>
+  </g>
+  <g id="align" transform="translate(256 0)" class="amber">
+    <use xlink:href="#alignment-frame"/>
+    <use xlink:href="#chevrons" class="ink"/>
+    <use xlink:href="#chevrons" class="signal"/>
+    <use xlink:href="#axis" class="ink"/>
+    <use xlink:href="#axis" class="accent"/>
+  </g>
+  <g id="aligned" transform="translate(0 128)" class="mint">
+    <use xlink:href="#alignment-frame"/>
+    <use xlink:href="#diamond" class="ink"/>
+    <use xlink:href="#diamond" class="signal"/>
+    <use xlink:href="#lock-check" class="ink"/>
+    <use xlink:href="#lock-check" class="accent"/>
+  </g>
+  <g id="transfer" transform="translate(128 128)" class="cyan">
+    <use xlink:href="#alignment-frame"/>
+    <use xlink:href="#tray" class="ink"/>
+    <use xlink:href="#tray" class="accent"/>
+    <use xlink:href="#lower" class="ink"/>
+    <use xlink:href="#lower" class="signal"/>
+  </g>
+  <g id="complete" transform="translate(256 128)" class="mint">
+    <use xlink:href="#alignment-frame"/>
+    <use xlink:href="#done" class="ink heavy"/>
+    <use xlink:href="#done" class="signal heavy"/>
+  </g>
+</svg>
